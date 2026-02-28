@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import MetricCard from "@/components/MetricCard";
 import Sidebar from "@/components/Sidebar";
-import { fetchDashboardStats } from "@/services/api";
+import { getDashboardStats } from "@/services/solana";
 
 const mockTreasuryData = [
   { date: "Jan 1", value: 10.0 },
@@ -28,22 +28,21 @@ const mockTransactionHistory = [
 
 type Transaction = {
   id: string;
-  amount: string;
-  status: "settled" | "requires_signature" | "failed";
+  amount: number;
+  status: "settled" | "failed";
   description: string;
   time: string;
+  fullSignature: string;
 };
 
-const mockTransactions: Transaction[] = [
-  { id: "txn_8k2j9d1m", amount: "0.0042", status: "settled", description: "Premium feature unlock", time: "2 min ago" },
-  { id: "txn_7h3k8s2p", amount: "0.0018", status: "settled", description: "API call payment", time: "15 min ago" },
-  { id: "txn_9m4n7f3q", amount: "0.0095", status: "requires_signature", description: "Monthly subscription", time: "1 hr ago" },
-  { id: "txn_6j2k9d5r", amount: "0.0031", status: "settled", description: "Content access fee", time: "3 hrs ago" },
-  { id: "txn_5h8j3k2s", amount: "0.0067", status: "failed", description: "Premium upgrade", time: "5 hrs ago" },
-];
-
 export default function DashboardPage() {
-  const [stats, setStats] = useState({ totalVolume: "$0.00", transactionCount: 0 });
+  const [loading, setLoading] = useState(true);
+  const [rpcError, setRpcError] = useState(false);
+  const [totalVolume, setTotalVolume] = useState("0.0000 SOL");
+  const [transactionCount, setTransactionCount] = useState(0);
+  const [successRate, setSuccessRate] = useState("100.0%");
+  const [currentBalance, setCurrentBalance] = useState("0.0000 SOL");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [treasuryEnabled, setTreasuryEnabled] = useState(true);
@@ -63,12 +62,22 @@ export default function DashboardPage() {
   const apiKey = "mp_live_9x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c";
 
   useEffect(() => {
-    fetchDashboardStats().then((data: any) => {
-      setStats({
-        totalVolume: data.totalVolume,
-        transactionCount: data.transactionCount,
-      });
-    });
+    async function loadStats() {
+      try {
+        setLoading(true);
+        const stats = await getDashboardStats();
+        setTotalVolume(stats.totalVolume);
+        setTransactionCount(stats.transactionCount);
+        setSuccessRate(stats.successRate);
+        setCurrentBalance(stats.currentBalance);
+        setTransactions(stats.transactions);
+      } catch (err) {
+        setRpcError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStats();
   }, []);
 
   const handleCopy = () => {
@@ -125,24 +134,40 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* RPC Error Banner */}
+      {rpcError && (
+        <div style={{
+          background: 'rgba(255, 170, 0, 0.1)',
+          border: '1px solid var(--warning)',
+          borderRadius: '4px',
+          padding: '0.5rem 1rem',
+          fontFamily: 'IBM Plex Mono',
+          fontSize: '0.75rem',
+          color: 'var(--warning)',
+          marginBottom: '1rem',
+        }}>
+          ⚠ Unable to reach Solana Devnet. Showing cached data.
+        </div>
+      )}
+
       {/* Metrics Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "40px" }}>
         <MetricCard
           title="Total Volume"
-          value={stats.totalVolume}
-          percentChange="+12.3%"
+          value={loading ? "Loading..." : totalVolume}
+          percentChange=""
           delay={0}
         />
         <MetricCard
           title="Transaction Count"
-          value={stats.transactionCount.toString()}
-          percentChange="+8.1%"
+          value={loading ? "Loading..." : transactionCount.toString()}
+          percentChange=""
           delay={100}
         />
         <MetricCard
           title="Success Rate"
-          value="98.4%"
-          percentChange="+0.3%"
+          value={loading ? "Loading..." : successRate}
+          percentChange=""
           delay={200}
         />
       </div>
@@ -218,7 +243,7 @@ export default function DashboardPage() {
               <div>
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "8px" }}>Total Deposited</p>
                 <p className="mono" style={{ fontSize: "28px", fontWeight: "600", color: "var(--text-primary)" }}>
-                  12.45 SOL
+                  {loading ? "Loading..." : currentBalance}
                 </p>
               </div>
             </div>
@@ -373,33 +398,43 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {mockTransactions.map((txn) => (
-              <tr key={txn.id}>
-                <td>
-                  <code className="mono" style={{ fontSize: "13px" }}>{txn.id}</code>
-                </td>
-                <td>
-                  <span className="mono" style={{ fontWeight: "600" }}>{txn.amount}</span>
-                </td>
-                <td>
-                  <span className={`status-badge ${
-                    txn.status === "settled" ? "status-settled" :
-                    txn.status === "requires_signature" ? "status-requires-signature" :
-                    "status-failed"
-                  }`}>
-                    {txn.status === "settled" ? "Settled" :
-                     txn.status === "requires_signature" ? "Pending" :
-                     "Failed"}
-                  </span>
-                </td>
-                <td style={{ color: "var(--text-muted)" }}>{txn.description}</td>
-                <td>
-                  <span className="mono" style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                    {txn.time}
-                  </span>
+            {loading ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                  Loading transactions...
                 </td>
               </tr>
-            ))}
+            ) : transactions.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                  No transactions found
+                </td>
+              </tr>
+            ) : (
+              transactions.map((txn) => (
+                <tr key={txn.fullSignature}>
+                  <td>
+                    <code className="mono" style={{ fontSize: "13px" }}>{txn.id}</code>
+                  </td>
+                  <td>
+                    <span className="mono" style={{ fontWeight: "600" }}>{txn.amount.toFixed(4)}</span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${
+                      txn.status === "settled" ? "status-settled" : "status-failed"
+                    }`}>
+                      {txn.status === "settled" ? "Settled" : "Failed"}
+                    </span>
+                  </td>
+                  <td style={{ color: "var(--text-muted)" }}>{txn.description}</td>
+                  <td>
+                    <span className="mono" style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                      {txn.time}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
         )}
