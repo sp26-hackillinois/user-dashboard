@@ -1,396 +1,300 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import MetricCard from "@/components/MetricCard";
-import { fetchDashboardStats } from "@/services/api";
+import { fetchRegistry } from "@/services/api";
 
-const mockTreasuryData = [
-  { date: "Jan 1", value: 10.0 },
-  { date: "Jan 5", value: 10.12 },
-  { date: "Jan 10", value: 10.25 },
-  { date: "Jan 15", value: 10.41 },
-  { date: "Jan 20", value: 10.58 },
-  { date: "Jan 25", value: 10.72 },
-  { date: "Jan 30", value: 10.89 },
-];
+const categories = ["All", "Weather", "Finance", "Web Search", "AI & NLP", "Blockchain Data", "Travel"];
 
-type Transaction = {
-  id: string;
-  amount: string;
-  status: "settled" | "requires_signature" | "failed";
-  description: string;
-  time: string;
-};
-
-const mockTransactions: Transaction[] = [
-  { id: "txn_8k2j9d1m", amount: "0.0042", status: "settled", description: "Premium feature unlock", time: "2 min ago" },
-  { id: "txn_7h3k8s2p", amount: "0.0018", status: "settled", description: "API call payment", time: "15 min ago" },
-  { id: "txn_9m4n7f3q", amount: "0.0095", status: "requires_signature", description: "Monthly subscription", time: "1 hr ago" },
-  { id: "txn_6j2k9d5r", amount: "0.0031", status: "settled", description: "Content access fee", time: "3 hrs ago" },
-  { id: "txn_5h8j3k2s", amount: "0.0067", status: "failed", description: "Premium upgrade", time: "5 hrs ago" },
-];
-
-export default function DashboardPage() {
-  const [stats, setStats] = useState({ totalVolume: "$0.00", transactionCount: 0 });
-  const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [treasuryEnabled, setTreasuryEnabled] = useState(true);
-
-  const apiKey = "mp_live_9x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c";
+export default function BazaarPage() {
+  const [services, setServices] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [filteredServices, setFilteredServices] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchDashboardStats().then((data: any) => {
-      setStats({
-        totalVolume: data.totalVolume,
-        transactionCount: data.transactionCount,
-      });
+    fetchRegistry().then((data) => {
+      setServices(data);
+      setFilteredServices(data);
     });
   }, []);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  useEffect(() => {
+    if (selectedCategory === "All") {
+      setFilteredServices(services);
+    } else {
+      setFilteredServices(services.filter(s => s.category === selectedCategory));
+    }
+  }, [selectedCategory, services]);
 
-  const handleToggleTreasury = () => {
-    setTreasuryEnabled(!treasuryEnabled);
+  const scrollToRegistry = () => {
+    document.getElementById("registry")?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "row", width: "100%", minHeight: "100vh" }}>
-      {/* Sidebar */}
-      <div
-        className="sidebar"
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          position: "fixed",
-          left: 0,
-          top: 0,
-          height: "100vh",
-        }}
-      >
-        <div className="sidebar-header">
-          <div className="sidebar-logo">Micropay</div>
-          <span className="devnet-badge">DEVNET</span>
-        </div>
-
-        <nav className="sidebar-nav">
-          <a href="#" className="nav-item nav-item-active">
-            Dashboard
-          </a>
-          <a href="#" className="nav-item">
-            API Keys
-          </a>
-          <a href="#" className="nav-item">
-            Transactions
-          </a>
-          <a href="#" className="nav-item">
-            Treasury
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">v1.0.0 · Solana Devnet</div>
-      </div>
-
-      {/* Main Content */}
-      <div
-        style={{
-          marginLeft: "240px",
-          flex: 1,
-          minHeight: "100vh",
-          overflowY: "auto",
-        }}
-      >
+    <div style={{ background: "radial-gradient(ellipse at top, #0d0d1a 0%, var(--bg-primary) 100%)", minHeight: "100vh" }}>
+      <div style={{
+        backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' /%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23noise)\' opacity=\'0.03\'/%3E%3C/svg%3E")',
+        minHeight: "100vh"
+      }}>
         {/* Navbar */}
-        <div className="navbar">
+        <nav style={{
+          borderBottom: "1px solid var(--border)",
+          padding: "20px 48px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div className="navbar-logo">Micropay</div>
+            <h1 style={{ fontFamily: "Syne, sans-serif", fontSize: "24px", fontWeight: "800", color: "var(--text-primary)" }}>
+              Micropay Bazaar
+            </h1>
             <span className="devnet-badge">DEVNET</span>
           </div>
-          <a
-            href="http://localhost:3000/api-docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary"
-          >
-            View API Docs
-          </a>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <a
+              href="http://localhost:3000/api-docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              View API Docs
+            </a>
+            <a href="/login" className="btn btn-primary">
+              Developer Login
+            </a>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <div style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+          padding: "120px 48px",
+          textAlign: "center"
+        }}>
+          <h2 style={{
+            fontFamily: "Syne, sans-serif",
+            fontSize: "64px",
+            fontWeight: "800",
+            color: "var(--text-primary)",
+            marginBottom: "24px",
+            lineHeight: "1.1",
+            animation: "fadeInUp 600ms ease forwards"
+          }}>
+            The App Store for<br />Autonomous Agents
+          </h2>
+          <p style={{
+            fontSize: "20px",
+            color: "var(--text-muted)",
+            marginBottom: "48px",
+            maxWidth: "700px",
+            margin: "0 auto 48px",
+            lineHeight: "1.6",
+            animation: "fadeInUp 600ms ease forwards",
+            animationDelay: "100ms",
+            opacity: 0,
+            animationFillMode: "forwards"
+          }}>
+            Discover, pay for, and integrate live data APIs with a single Micropay key. Priced in USD. Settled in 400ms on Solana.
+          </p>
+          <div style={{
+            display: "flex",
+            gap: "16px",
+            justifyContent: "center",
+            animation: "fadeInUp 600ms ease forwards",
+            animationDelay: "200ms",
+            opacity: 0,
+            animationFillMode: "forwards"
+          }}>
+            <a href="/login" className="btn btn-primary" style={{ padding: "16px 32px", fontSize: "16px" }}>
+              Get Your API Key
+            </a>
+            <button
+              onClick={scrollToRegistry}
+              className="btn btn-secondary"
+              style={{ padding: "16px 32px", fontSize: "16px" }}
+            >
+              Browse the Registry
+            </button>
+          </div>
         </div>
 
-        {/* Content Wrapper */}
-        <div className="content-wrapper">
-          {/* Metrics Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "20px",
-              marginBottom: "40px",
-            }}
-          >
-            <MetricCard
-              title="Total Volume"
-              value={stats.totalVolume}
-              percentChange="+12.3%"
-              delay={0}
-            />
-            <MetricCard
-              title="Transaction Count"
-              value={stats.transactionCount.toString()}
-              percentChange="+8.1%"
-              delay={100}
-            />
-            <MetricCard
-              title="Success Rate"
-              value="98.4%"
-              percentChange="+0.3%"
-              delay={200}
-            />
-          </div>
-
-          {/* API Keys Section */}
-          <div style={{ marginBottom: "40px" }}>
-            <h2 className="section-header">API Keys</h2>
-            <div
-              style={{
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--border)",
-                borderRadius: "6px",
-                padding: "24px",
-              }}
-            >
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                <input
-                  type="text"
-                  value={apiKey}
-                  readOnly
-                  className={`api-key-input ${!apiKeyRevealed ? "api-key-blurred" : ""}`}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  onClick={() => setApiKeyRevealed(!apiKeyRevealed)}
-                  className="btn btn-secondary"
-                >
-                  {apiKeyRevealed ? "Hide" : "Reveal"}
-                </button>
-                <button onClick={handleCopy} className="btn btn-primary">
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
+        {/* API Grid */}
+        <div id="registry" style={{
+          maxWidth: "1200px",
+          margin: "0 auto",
+          padding: "80px 48px 120px"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "40px" }}>
+            <h3 style={{
+              fontFamily: "Syne, sans-serif",
+              fontSize: "32px",
+              fontWeight: "700",
+              color: "var(--text-primary)"
+            }}>
+              Live Registry
+            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: "var(--accent-primary)",
+                animation: "pulse 2s ease infinite"
+              }} />
+              <span style={{ fontSize: "13px", color: "var(--accent-primary)", fontWeight: "600" }}>LIVE</span>
             </div>
           </div>
 
-          {/* Treasury Section */}
-          <div style={{ marginBottom: "40px" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "24px",
-              }}
-            >
-              <div>
-                <h2 className="section-header" style={{ marginBottom: "0" }}>
-                  Treasury Management
-                </h2>
-                <p className="section-subheader">Autonomous Yield via Jupiter</p>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span
-                  style={{
-                    fontSize: "14px",
-                    color: "var(--text-muted)",
-                    fontWeight: "600",
-                  }}
-                >
-                  Enable Autonomous Yield
-                </span>
-                <div
-                  className={`treasury-toggle ${treasuryEnabled ? "treasury-toggle-active" : ""}`}
-                  onClick={handleToggleTreasury}
-                >
-                  <div className="treasury-toggle-knob" />
-                </div>
-              </div>
-            </div>
+          {/* Category Filter Pills */}
+          <div style={{
+            display: "flex",
+            gap: "12px",
+            marginBottom: "32px",
+            overflowX: "auto",
+            paddingBottom: "8px"
+          }}>
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  border: "1px solid var(--border)",
+                  background: selectedCategory === category ? "var(--accent-primary)" : "var(--bg-elevated)",
+                  color: selectedCategory === category ? "var(--bg-primary)" : "var(--text-primary)",
+                  fontFamily: "IBM Plex Mono, monospace",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 150ms ease",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
 
-            {treasuryEnabled && (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: "24px"
+          }}>
+            {filteredServices.map((service, index) => (
               <div
+                key={service.id}
+                className="service-card"
                 style={{
                   background: "var(--bg-elevated)",
                   border: "1px solid var(--border)",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
                   padding: "24px",
-                  marginBottom: "20px",
+                  transition: "all 150ms ease",
+                  opacity: 0,
+                  animation: "fadeInUp 400ms ease forwards",
+                  animationDelay: `${index * 50}ms`,
+                  animationFillMode: "forwards"
                 }}
               >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: "20px",
-                    marginBottom: "20px",
-                  }}
-                >
-                  <div>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--text-muted)",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Current Yield
-                    </p>
-                    <p
-                      className="mono"
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: "600",
-                        color: "var(--accent-primary)",
-                      }}
-                    >
-                      +2.4% APY
-                    </p>
-                  </div>
-                  <div>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--text-muted)",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      Asset
-                    </p>
-                    <p
-                      className="mono"
-                      style={{
-                        fontSize: "28px",
-                        fontWeight: "600",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      JitoSOL
-                    </p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
+                  <h4 style={{
+                    fontFamily: "Syne, sans-serif",
+                    fontSize: "18px",
+                    fontWeight: "700",
+                    color: "var(--text-primary)"
+                  }}>
+                    {service.name}
+                  </h4>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <span style={{
+                      background: "rgba(90, 90, 122, 0.2)",
+                      color: "var(--text-muted)",
+                      padding: "4px 8px",
+                      borderRadius: "3px",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      fontFamily: "IBM Plex Mono, monospace"
+                    }}>
+                      {service.category}
+                    </span>
+                    <span style={{
+                      background: "rgba(0, 255, 136, 0.15)",
+                      color: "var(--accent-primary)",
+                      padding: "4px 8px",
+                      borderRadius: "3px",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      fontFamily: "IBM Plex Mono, monospace"
+                    }}>
+                      LIVE
+                    </span>
                   </div>
                 </div>
+                <p style={{
+                  fontSize: "14px",
+                  color: "var(--text-muted)",
+                  marginBottom: "16px",
+                  lineHeight: "1.5"
+                }}>
+                  {service.description}
+                </p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{
+                    fontFamily: "IBM Plex Mono, monospace",
+                    fontSize: "20px",
+                    fontWeight: "600",
+                    color: "var(--accent-primary)"
+                  }}>
+                    {service.cost}
+                  </span>
+                  <span style={{
+                    fontFamily: "IBM Plex Mono, monospace",
+                    fontSize: "11px",
+                    color: "var(--text-muted)"
+                  }}>
+                    {service.id}
+                  </span>
+                </div>
               </div>
-            )}
-
-            <div className="chart-container grid-pattern">
-              <h3
-                style={{
-                  fontFamily: "Syne, sans-serif",
-                  fontSize: "18px",
-                  fontWeight: "600",
-                  marginBottom: "20px",
-                }}
-              >
-                Treasury Growth
-              </h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={mockTreasuryData}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    dataKey="date"
-                    stroke="var(--text-muted)"
-                    style={{ fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}
-                  />
-                  <YAxis
-                    stroke="var(--text-muted)"
-                    style={{ fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}
-                    domain={[10, 11]}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--bg-surface)",
-                      border: "1px solid var(--border)",
-                      borderRadius: "4px",
-                      fontFamily: "IBM Plex Mono, monospace",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="value"
-                    stroke="var(--accent-primary)"
-                    strokeWidth={2}
-                    fill="url(#colorValue)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Transactions Table */}
-          <div>
-            <h2 className="section-header">Recent Transactions</h2>
-            <table className="transactions-table">
-              <thead>
-                <tr>
-                  <th>Transaction ID</th>
-                  <th>Amount (SOL)</th>
-                  <th>Status</th>
-                  <th>Description</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTransactions.map((txn) => (
-                  <tr key={txn.id}>
-                    <td>
-                      <code className="mono" style={{ fontSize: "13px" }}>
-                        {txn.id}
-                      </code>
-                    </td>
-                    <td>
-                      <span className="mono" style={{ fontWeight: "600" }}>
-                        {txn.amount}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`status-badge ${
-                          txn.status === "settled"
-                            ? "status-settled"
-                            : txn.status === "requires_signature"
-                            ? "status-requires-signature"
-                            : "status-failed"
-                        }`}
-                      >
-                        {txn.status === "settled"
-                          ? "Settled"
-                          : txn.status === "requires_signature"
-                          ? "Pending"
-                          : "Failed"}
-                      </span>
-                    </td>
-                    <td style={{ color: "var(--text-muted)" }}>{txn.description}</td>
-                    <td>
-                      <span
-                        className="mono"
-                        style={{ fontSize: "13px", color: "var(--text-muted)" }}
-                      >
-                        {txn.time}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            ))}
           </div>
         </div>
+
+        {/* Footer */}
+        <footer style={{
+          borderTop: "1px solid var(--border)",
+          padding: "32px 48px",
+          textAlign: "center"
+        }}>
+          <p style={{
+            fontFamily: "IBM Plex Mono, monospace",
+            fontSize: "12px",
+            color: "var(--text-muted)"
+          }}>
+            Micropay Bazaar · HackIllinois 2026 · Solana Devnet
+          </p>
+        </footer>
       </div>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7);
+          }
+          50% {
+            opacity: 0.5;
+            box-shadow: 0 0 0 8px rgba(0, 255, 136, 0);
+          }
+        }
+
+        .service-card:hover {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
+          transform: translateY(-2px);
+        }
+      `}</style>
     </div>
   );
 }

@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { name: "Dashboard", path: "/dashboard" },
-  { name: "API Keys", path: "/dashboard/keys" },
-  { name: "Transactions", path: "/dashboard/transactions" },
-  { name: "Treasury", path: "/dashboard/treasury" },
+  { name: "API Keys", path: "/dashboard#keys" },
+  { name: "Transactions", path: "/dashboard#transactions" },
+  { name: "Treasury", path: "/dashboard#treasury" },
+  { name: "Register API", path: "/dashboard#register" },
+  { name: "Playground", path: "/playground" },
 ];
 
 export default function Sidebar() {
@@ -16,7 +18,7 @@ export default function Sidebar() {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-logo">Micropay</div>
+        <div className="sidebar-logo">Micropay Bazaar</div>
         <span className="devnet-badge">DEVNET</span>
       </div>
 
