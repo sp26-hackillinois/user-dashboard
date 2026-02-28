@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const navItems = [
   { name: "Dashboard", path: "/dashboard" },
+  { name: "Bazaar", path: "/dashboard/bazaar" },
   { name: "API Keys", path: "/dashboard#keys" },
   { name: "Transactions", path: "/dashboard#transactions" },
   { name: "Treasury", path: "/dashboard#treasury" },
@@ -18,7 +19,7 @@ export default function Sidebar() {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-logo">Micropay Bazaar</div>
+        <div className="sidebar-logo">Micropay</div>
         <span className="devnet-badge">DEVNET</span>
       </div>
 

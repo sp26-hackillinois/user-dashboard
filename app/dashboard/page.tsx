@@ -70,7 +70,7 @@ export default function DashboardPage() {
         setTransactionCount(stats.transactionCount);
         setSuccessRate(stats.successRate);
         setCurrentBalance(stats.currentBalance);
-        setTransactions(stats.transactions);
+        setTransactions(stats.transactions as Transaction[]);
       } catch (err) {
         setRpcError(true);
       } finally {
@@ -116,7 +116,7 @@ export default function DashboardPage() {
     <div className="content-wrapper">
       {/* Top Navbar */}
       <div className="navbar" style={{ marginLeft: "-40px", marginTop: "-40px", marginRight: "-40px", marginBottom: "40px" }}>
-        <div className="navbar-logo">Micropay Bazaar</div>
+        <div className="navbar-logo">Micropay</div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
           <a
             href="http://localhost:3000/api-docs"

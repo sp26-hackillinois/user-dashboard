@@ -45,7 +45,7 @@ export default function BazaarPage() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <h1 style={{ fontFamily: "Syne, sans-serif", fontSize: "24px", fontWeight: "800", color: "var(--text-primary)" }}>
-              Micropay Bazaar
+              Micropay
             </h1>
             <span className="devnet-badge">DEVNET</span>
           </div>

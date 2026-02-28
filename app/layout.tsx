@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Micropay Dashboard",
+  title: "Micropay",
   description: "Accept sub-cent payments on Solana",
 };
 

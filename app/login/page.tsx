@@ -31,7 +31,7 @@ export default function LoginPage() {
       }}>
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <h1 className="heading" style={{ fontSize: "32px", fontWeight: "800", marginBottom: "8px" }}>
-            Micropay Bazaar
+            Micropay
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
             Developer Dashboard

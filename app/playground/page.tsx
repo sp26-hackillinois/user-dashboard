@@ -63,6 +63,8 @@ export default function PlaygroundPage() {
   const [showApproveButton, setShowApproveButton] = useState(false);
   const [selectedTool, setSelectedTool] = useState<any>({ service_id: "srv_weather_01" });
   const [typewriterText, setTypewriterText] = useState("");
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [walletConnecting, setWalletConnecting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const autoSelectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -74,7 +76,24 @@ export default function PlaygroundPage() {
     scrollToBottom();
   }, [messages, typewriterText]);
 
+  async function connectWallet() {
+    if (typeof window === 'undefined' || !(window as any).solana) {
+      alert('Please install Phantom wallet extension');
+      return;
+    }
+    try {
+      setWalletConnecting(true);
+      const res = await (window as any).solana.connect();
+      setWalletAddress(res.publicKey.toString());
+    } catch (err) {
+      console.error('Wallet connect failed:', err);
+    } finally {
+      setWalletConnecting(false);
+    }
+  }
+
   const handleToolSelect = (tool: any) => {
+    if (!tool || !tool.name) return;
     setSelectedTool(tool);
     if (autoSelectTimerRef.current) {
       clearTimeout(autoSelectTimerRef.current);
@@ -86,9 +105,9 @@ export default function PlaygroundPage() {
         ...prev,
         {
           type: "tool_call",
-          content: `Querying Registry...\nFound: ${tool.name} · $${tool.price_usd.toFixed(2)}\nRequesting payment authorization...`,
-          service: tool.name,
-          cost: `$${tool.price_usd.toFixed(2)}`
+          content: `Querying Registry...\nFound: ${tool?.name ?? 'Unknown'} · $${tool?.price_usd?.toFixed(2) ?? '0.00'}\nRequesting payment authorization...`,
+          service: tool?.name ?? 'Unknown Service',
+          cost: `$${tool?.price_usd?.toFixed(2) ?? '0.00'}`
         }
       ]);
 
@@ -98,9 +117,9 @@ export default function PlaygroundPage() {
           {
             type: "payment_required",
             content: "",
-            service: tool.name,
-            cost: `$${tool.price_usd.toFixed(2)}`,
-            sol: `~${(tool.price_usd / 150).toFixed(6)} SOL`
+            service: tool?.name ?? 'Unknown Service',
+            cost: `$${tool?.price_usd?.toFixed(2) ?? '0.00'}`,
+            sol: `~${((tool?.price_usd ?? 0) / 150).toFixed(6)} SOL`
           }
         ]);
         setShowApproveButton(true);
@@ -160,8 +179,8 @@ export default function PlaygroundPage() {
         }
       ]);
 
-      setTimeout(() => {
-        const discovered = discoverByIntent(userMessage, 3);
+      setTimeout(async () => {
+        const discovered = await discoverByIntent(userMessage, 3);
 
         if (discovered.length === 0) {
           setMessages(prev => [
@@ -246,6 +265,26 @@ export default function PlaygroundPage() {
           flexDirection: "column",
           gap: "16px"
         }}>
+          {!walletAddress && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              padding: '0.75rem 1rem',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--warning)',
+              borderRadius: '4px',
+              marginBottom: '1rem',
+              fontFamily: 'IBM Plex Mono',
+              fontSize: '0.8rem',
+              color: 'var(--warning)',
+            }}>
+              ⚠ Connect your Phantom wallet to enable payments.
+              <button onClick={connectWallet} className="btn btn-primary" style={{ marginLeft: 'auto' }}>
+                Connect Phantom
+              </button>
+            </div>
+          )}
           {messages.map((msg, index) => {
             if (msg.type === "user") {
               return (
@@ -332,7 +371,7 @@ export default function PlaygroundPage() {
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
-                      {msg.results?.map((tool, toolIndex) => (
+                      {Array.isArray(msg.results) && msg.results.map((tool, toolIndex) => (
                         <button
                           key={tool.service_id}
                           onClick={() => handleToolSelect(tool)}
@@ -501,6 +540,32 @@ export default function PlaygroundPage() {
                       fontFamily: "IBM Plex Mono, monospace",
                       fontSize: "13px",
                       color: "var(--accent-primary)",
+                      fontWeight: "600"
+                    }}>
+                      {msg.content}
+                    </span>
+                  </div>
+                </div>
+              );
+            }
+
+            if (msg.type === "error") {
+              return (
+                <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
+                  <div style={{
+                    background: "rgba(255, 68, 85, 0.1)",
+                    border: "1px solid var(--danger)",
+                    borderRadius: "6px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px"
+                  }}>
+                    <span style={{ color: "var(--danger)", fontSize: "16px" }}>✕</span>
+                    <span style={{
+                      fontFamily: "IBM Plex Mono, monospace",
+                      fontSize: "13px",
+                      color: "var(--danger)",
                       fontWeight: "600"
                     }}>
                       {msg.content}
