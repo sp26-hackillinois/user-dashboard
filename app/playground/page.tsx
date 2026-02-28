@@ -1,72 +1,93 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import { discoverByIntent } from "@/services/api";
-
-type MessageType = "user" | "agent" | "discovery_query" | "discovery_results" | "tool_call" | "payment_required" | "payment_confirmed";
+import { API_REGISTRY, discoverTools, getMockResponse, type ApiTool } from "@/lib/registry";
 
 type Message = {
-  type: MessageType;
+  role: 'user' | 'agent' | 'system' | 'discovery' | 'tool_call' | 'payment' | 'confirmed';
   content: string;
+  results?: ApiTool[];
   service?: string;
   cost?: string;
-  sol?: string;
-  results?: any[];
+  cost_usd?: number;
+  sol?: number;
+  ms?: number;
+  signature?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  solPrice?: number;
+  pendingResponse?: string;
+  approved?: boolean;
 };
 
 const emojiMap: Record<string, string> = {
   "Weather": "🌤",
   "Finance": "💰",
+  "News": "📰",
   "Web Search": "🔍",
+  "LLM / AI": "🧠",
   "AI & NLP": "🤖",
+  "Sports": "⚽",
+  "Food": "🍽",
+  "Travel": "✈️",
   "Blockchain Data": "⛓",
-  "Travel": "✈️"
+  "Data & Stats": "📊"
 };
 
-export default function PlaygroundPage() {
+function PlaygroundContent() {
+  const searchParams = useSearchParams();
+  const toolId = searchParams.get('toolId');
+
+  const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''
+  const OPENAI_DESTINATION_WALLET = '2Hn6ESeMRqfVDTptanXgK6vDEpgJGnp4rG6Ls3dzszv8'
+  const GPT4O_INPUT_COST_PER_TOKEN = 0.000005   // $5 per 1M input tokens
+  const GPT4O_OUTPUT_COST_PER_TOKEN = 0.000015  // $15 per 1M output tokens
+
+  const [userMessage, setUserMessage] = useState('');
+  const [suggestedTools, setSuggestedTools] = useState<ApiTool[]>([]);
+  const [chosenTool, setChosenTool] = useState<ApiTool | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([
-    { type: "user", content: "What is the weather in Chicago?" },
+    { role: 'user', content: 'What is the weather in Chicago?' },
     {
-      type: "discovery_results",
-      content: "",
+      role: 'discovery',
+      content: 'Found 3 matching tools:',
       results: [
-        { service_id: "srv_weather_01", name: "Live Weather", price_usd: 0.01, category: "Weather", score: 5 },
-        { service_id: "srv_weather_02", name: "7-Day Forecast", price_usd: 0.02, category: "Weather", score: 4 },
-        { service_id: "srv_finance_02", name: "Crypto Price Oracle", price_usd: 0.01, category: "Finance", score: 2 },
+        { id: 'weather_live', name: 'Live Weather', category: 'Weather', description: 'Real-time temperature and precipitation for any city.', endpoint: '/tools/weather', priceUsd: 0.01, tags: ['weather', 'temperature', 'forecast', 'climate', 'rain'] },
+        { id: 'weather_forecast', name: '7-Day Forecast', category: 'Weather', description: 'Extended 7-day weather forecast for any location.', endpoint: '/tools/forecast', priceUsd: 0.02, tags: ['forecast', 'weekly', 'weather', 'climate'] },
+        { id: 'finance_crypto', name: 'Crypto Price Oracle', category: 'Finance', description: 'Live SOL/USD, BTC/USD, ETH/USD price feeds.', endpoint: '/tools/crypto', priceUsd: 0.01, tags: ['crypto', 'bitcoin', 'solana', 'ethereum', 'price', 'blockchain'] },
       ]
     },
     {
-      type: "tool_call",
-      content: "Querying Registry...\nFound: Live Weather · $0.01\nRequesting payment authorization...",
-      service: "Live Weather",
-      cost: "$0.01"
+      role: 'tool_call',
+      service: 'Live Weather',
+      cost: '0.01',
+      content: ''
     },
     {
-      type: "payment_required",
-      content: "",
-      service: "Live Weather",
-      cost: "$0.01",
-      sol: "~0.000067 SOL"
+      role: 'payment',
+      service: 'Live Weather',
+      cost_usd: 0.01,
+      sol: 0.000067,
+      content: ''
     },
     {
-      type: "payment_confirmed",
-      content: "Payment Confirmed · Settled in 412ms"
+      role: 'confirmed',
+      content: '',
+      ms: 412,
+      signature: '5k7m9...',
+      sol: 0.000067
     },
     {
-      type: "agent",
-      content: "The current weather in Chicago is 72°F and partly cloudy. Humidity is at 58%."
+      role: 'agent',
+      content: 'The current weather in Chicago is 72°F and partly cloudy. Humidity is at 58%.'
     }
   ]);
-  const [input, setInput] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showApproveButton, setShowApproveButton] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<any>({ service_id: "srv_weather_01" });
-  const [typewriterText, setTypewriterText] = useState("");
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [awaitingToolSelection, setAwaitingToolSelection] = useState(false);
   const [walletConnecting, setWalletConnecting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const autoSelectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,7 +95,20 @@ export default function PlaygroundPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, typewriterText]);
+  }, [messages]);
+
+  useEffect(() => {
+    if (toolId) {
+      const tool = API_REGISTRY.find(t => t.id === toolId);
+      if (tool) {
+        setChosenTool(tool);
+        setMessages(prev => [...prev, {
+          role: 'system',
+          content: `Tool preselected from Bazaar: ${tool.name} · $${tool.priceUsd.toFixed(2)}/call`
+        }]);
+      }
+    }
+  }, [toolId]);
 
   async function connectWallet() {
     if (typeof window === 'undefined' || !(window as any).solana) {
@@ -92,129 +126,294 @@ export default function PlaygroundPage() {
     }
   }
 
-  const handleToolSelect = (tool: any) => {
-    if (!tool || !tool.name) return;
-    setSelectedTool(tool);
-    if (autoSelectTimerRef.current) {
-      clearTimeout(autoSelectTimerRef.current);
-      autoSelectTimerRef.current = null;
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).solana) {
+      (window as any).solana.connect({ onlyIfTrusted: true })
+        .then((res: any) => setWalletAddress(res.publicKey.toString()))
+        .catch(() => {});
+    }
+  }, []);
+
+  async function callOpenAIWithCost(prompt: string): Promise<{
+    response: string
+    inputTokens: number
+    outputTokens: number
+    costUsd: number
+  }> {
+    if (!OPENAI_API_KEY) throw new Error('OpenAI API key not configured')
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant integrated into Micropay Bazaar — a marketplace for AI-powered micro-transaction APIs on Solana. Answer concisely and helpfully.'
+          },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 300,
+      })
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err?.error?.message || `OpenAI error: ${res.status}`)
     }
 
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          type: "tool_call",
-          content: `Querying Registry...\nFound: ${tool?.name ?? 'Unknown'} · $${tool?.price_usd?.toFixed(2) ?? '0.00'}\nRequesting payment authorization...`,
-          service: tool?.name ?? 'Unknown Service',
-          cost: `$${tool?.price_usd?.toFixed(2) ?? '0.00'}`
-        }
-      ]);
+    const data = await res.json()
+    const inputTokens = data.usage?.prompt_tokens || 0
+    const outputTokens = data.usage?.completion_tokens || 0
+    const costUsd = (inputTokens * GPT4O_INPUT_COST_PER_TOKEN) + (outputTokens * GPT4O_OUTPUT_COST_PER_TOKEN)
 
-      setTimeout(() => {
-        setMessages(prev => [
-          ...prev,
-          {
-            type: "payment_required",
-            content: "",
-            service: tool?.name ?? 'Unknown Service',
-            cost: `$${tool?.price_usd?.toFixed(2) ?? '0.00'}`,
-            sol: `~${((tool?.price_usd ?? 0) / 150).toFixed(6)} SOL`
-          }
-        ]);
-        setShowApproveButton(true);
-      }, 1000);
-    }, 800);
-  };
+    return {
+      response: data.choices?.[0]?.message?.content || 'No response.',
+      inputTokens,
+      outputTokens,
+      costUsd: Math.max(costUsd, 0.000001), // minimum to avoid 0 lamports
+    }
+  }
 
-  const handleApprove = () => {
-    setShowApproveButton(false);
-    setMessages(prev => [
-      ...prev,
-      {
-        type: "payment_confirmed",
-        content: "Payment Confirmed · Settled in 412ms"
+  async function getSolPrice(): Promise<number> {
+    try {
+      const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd')
+      const data = await res.json()
+      return data?.solana?.usd || 150
+    } catch {
+      return 150 // fallback price
+    }
+  }
+
+  async function sendSolPayment(amountSol: number, sourceWallet: string): Promise<string> {
+    const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } = await import('@solana/web3.js')
+
+    const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
+    const fromPubkey = new PublicKey(sourceWallet)
+    const toPubkey = new PublicKey(OPENAI_DESTINATION_WALLET)
+    const lamports = Math.round(amountSol * LAMPORTS_PER_SOL)
+
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
+    )
+
+    const { blockhash } = await connection.getLatestBlockhash()
+    transaction.recentBlockhash = blockhash
+    transaction.feePayer = fromPubkey
+
+    const { signature } = await (window as any).solana.signAndSendTransaction(transaction)
+    return signature
+  }
+
+  async function runOpenAIFlow(query: string) {
+    if (!walletAddress) {
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: '⚠ Connect your Phantom wallet to proceed.'
+      }])
+      return
+    }
+
+    // Step 1 — Show thinking state
+    setMessages(prev => [...prev, {
+      role: 'tool_call',
+      service: 'OpenAI GPT-4o',
+      cost: 'Calculating...',
+      content: ''
+    }])
+
+    try {
+      // Step 2 — Call OpenAI and get real token usage
+      const { response, inputTokens, outputTokens, costUsd } = await callOpenAIWithCost(query)
+
+      // Step 3 — Get live SOL price
+      const solPrice = await getSolPrice()
+      const amountSol = costUsd / solPrice
+
+      // Step 4 — Show real cost breakdown, ask for approval
+      setMessages(prev => [...prev, {
+        role: 'payment',
+        service: 'OpenAI GPT-4o',
+        cost_usd: costUsd,
+        sol: amountSol,
+        inputTokens,
+        outputTokens,
+        solPrice,
+        pendingResponse: response, // store response, show only after payment
+        approved: false,
+        content: ''
+      }])
+
+    } catch (err: any) {
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: `OpenAI error: ${err.message}`
+      }])
+    }
+
+    setAwaitingToolSelection(false)
+  }
+
+  async function handleApprovePayment(paymentMsg: Message) {
+    // Mark as approved immediately so button disappears
+    setMessages(prev => prev.map(m =>
+      m === paymentMsg ? { ...m, approved: true } : m
+    ))
+
+    try {
+      const signature = await sendSolPayment(paymentMsg.sol!, walletAddress!)
+
+      // Show confirmation
+      setMessages(prev => [...prev, {
+        role: 'confirmed',
+        ms: 400,
+        signature: signature.slice(0, 12) + '...',
+        sol: paymentMsg.sol,
+        content: ''
+      }])
+
+      // Now reveal the OpenAI response with typewriter
+      await new Promise(r => setTimeout(r, 600))
+      setMessages(prev => [...prev, {
+        role: 'agent',
+        content: paymentMsg.pendingResponse!,
+      }])
+
+    } catch (err: any) {
+      if (err?.code === 4001) {
+        setMessages(prev => [...prev, {
+          role: 'system',
+          content: 'Payment cancelled. Response not shown.'
+        }])
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'system',
+          content: `Payment failed: ${err?.message || 'Unknown error'}`
+        }])
       }
-    ]);
+    }
+  }
 
-    setTimeout(() => {
-      const response = "I've retrieved the data you requested via the Micropay Registry. Here is your result: The information has been successfully fetched and processed.";
-      let index = 0;
-      const interval = setInterval(() => {
-        if (index <= response.length) {
-          setTypewriterText(response.substring(0, index));
-          index++;
-        } else {
-          clearInterval(interval);
-          setMessages(prev => [
-            ...prev,
-            { type: "agent", content: response }
-          ]);
-          setTypewriterText("");
-          setIsProcessing(false);
-          setSelectedTool(null);
-        }
-      }, 20);
-    }, 500);
-  };
+  async function runAgentCall(query: string, tool: ApiTool) {
+    if (tool.id === 'openai_chat') {
+      await runOpenAIFlow(query)
+      return
+    }
 
-  const handleSend = () => {
-    if (!input.trim() || isProcessing) return;
+    // All other tools — existing mock flow unchanged
+    if (!walletAddress) {
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: '⚠ Connect your Phantom wallet to proceed with payment.'
+      }]);
+      return;
+    }
 
-    const userMessage = input;
-    setInput("");
-    setIsProcessing(true);
+    setMessages(prev => [...prev, {
+      role: 'tool_call',
+      service: tool.name,
+      cost: `${tool.priceUsd}`,
+      content: ''
+    }]);
 
-    setMessages(prev => [
-      ...prev,
-      { type: "user", content: userMessage }
-    ]);
+    try {
+      const { createCharge } = await import('@/services/api');
+      const charge = await createCharge({
+        service_id: tool.id,
+        source_wallet: walletAddress,
+      });
 
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          type: "discovery_query",
-          content: `Querying registry for: "${userMessage}"...`
-        }
-      ]);
+      setMessages(prev => [...prev, {
+        role: 'payment',
+        service: tool.name,
+        cost_usd: charge.amount_usd,
+        sol: charge.amount_sol,
+        content: ''
+      }]);
 
-      setTimeout(async () => {
-        const discovered = await discoverByIntent(userMessage, 3);
+      const { Transaction } = await import('@solana/web3.js');
+      const tx = Transaction.from(Buffer.from(charge.transaction_payload, 'base64'));
+      const { signature } = await (window as any).solana.signAndSendTransaction(tx);
 
-        if (discovered.length === 0) {
-          setMessages(prev => [
-            ...prev.slice(0, -1),
-            {
-              type: "agent",
-              content: "No matching tools found in registry. Proceeding without tool injection."
-            }
-          ]);
-          setIsProcessing(false);
-        } else {
-          setMessages(prev => [
-            ...prev.slice(0, -1),
-            {
-              type: "discovery_results",
-              content: "",
-              results: discovered
-            }
-          ]);
+      setMessages(prev => [...prev, {
+        role: 'confirmed',
+        ms: 400,
+        signature: signature.slice(0, 12) + '...',
+        sol: charge.amount_sol,
+        content: ''
+      }]);
 
-          autoSelectTimerRef.current = setTimeout(() => {
-            handleToolSelect(discovered[0]);
-          }, 5000);
-        }
-      }, 800);
-    }, 500);
-  };
+      await new Promise(r => setTimeout(r, 600));
+
+      const agentResponse = getMockResponse(tool.id, query)
+      setMessages(prev => [...prev, { role: 'agent', content: agentResponse }]);
+
+    } catch (err: any) {
+      if (err?.code === 4001) {
+        setMessages(prev => [...prev, { role: 'system', content: 'Payment cancelled by user.' }]);
+      } else if (err?.response?.status === 400 || err?.response?.status === 404) {
+        setMessages(prev => [...prev, {
+          role: 'system',
+          content: `⚠ Backend service not registered yet. Showing mocked response.`
+        }]);
+        setMessages(prev => [...prev, {
+          role: 'agent',
+          content: getMockResponse(tool.id, query)
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'system',
+          content: `Error: ${err?.message || 'Unknown error'}`
+        }]);
+      }
+    }
+
+    setAwaitingToolSelection(false);
+  }
+
+  async function handleSend() {
+    if (!userMessage.trim()) return;
+
+    const query = userMessage;
+    setMessages(prev => [...prev, { role: 'user', content: query }]);
+    setUserMessage('');
+
+    setChosenTool(null);
+    setAwaitingToolSelection(true);
+
+    const suggestions = discoverTools(query, 3);
+
+    if (suggestions.length === 0) {
+      setMessages(prev => [...prev, {
+        role: 'discovery',
+        content: `Found 3 tools matching your request:`,
+        results: API_REGISTRY.slice(0, 3),
+      }]);
+    } else {
+      setMessages(prev => [...prev, {
+        role: 'discovery',
+        content: `Found ${suggestions.length} tools matching your request:`,
+        results: suggestions,
+      }]);
+    }
+  }
+
+  function handleChipSelect(tool: ApiTool) {
+    setChosenTool(tool);
+    setAwaitingToolSelection(false);
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) runAgentCall(lastUserMsg.content, tool);
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "row", width: "100%", minHeight: "100vh" }}>
       <Sidebar />
 
       <div style={{ marginLeft: "240px", flex: 1, minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-primary)" }}>
-        {/* Top Bar */}
         <div style={{
           borderBottom: "1px solid var(--border)",
           padding: "20px 32px",
@@ -256,7 +455,6 @@ export default function PlaygroundPage() {
           </div>
         </div>
 
-        {/* Chat Area */}
         <div style={{
           flex: 1,
           overflowY: "auto",
@@ -281,12 +479,13 @@ export default function PlaygroundPage() {
             }}>
               ⚠ Connect your Phantom wallet to enable payments.
               <button onClick={connectWallet} className="btn btn-primary" style={{ marginLeft: 'auto' }}>
-                Connect Phantom
+                {walletConnecting ? 'Connecting...' : 'Connect Phantom'}
               </button>
             </div>
           )}
+
           {messages.map((msg, index) => {
-            if (msg.type === "user") {
+            if (msg.role === "user") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div style={{
@@ -305,7 +504,7 @@ export default function PlaygroundPage() {
               );
             }
 
-            if (msg.type === "agent") {
+            if (msg.role === "agent") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -325,23 +524,26 @@ export default function PlaygroundPage() {
               );
             }
 
-            if (msg.type === "discovery_query") {
+            if (msg.role === "system") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
                     fontFamily: "IBM Plex Mono, monospace",
                     fontSize: "13px",
                     color: "var(--text-muted)",
-                    fontStyle: "italic"
+                    fontStyle: "italic",
+                    padding: "8px 12px",
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "4px"
                   }}>
                     {msg.content}
-                    <span style={{ animation: "blink 1s infinite" }}>▊</span>
                   </div>
                 </div>
               );
             }
 
-            if (msg.type === "discovery_results") {
+            if (msg.role === "discovery") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -367,44 +569,35 @@ export default function PlaygroundPage() {
                       color: "var(--text-muted)",
                       marginBottom: "16px"
                     }}>
-                      Found {msg.results?.length} tools matching your request:
+                      {msg.content}
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
                       {Array.isArray(msg.results) && msg.results.map((tool, toolIndex) => (
                         <button
-                          key={tool.service_id}
-                          onClick={() => handleToolSelect(tool)}
-                          disabled={selectedTool !== null}
+                          key={tool.id}
+                          onClick={() => handleChipSelect(tool)}
                           style={{
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
                             padding: "12px 16px",
-                            background: selectedTool?.service_id === tool.service_id ? "var(--accent-primary)" : "var(--bg-elevated)",
-                            border: selectedTool?.service_id === tool.service_id ? "1px solid var(--accent-primary)" : "1px solid var(--border)",
+                            background: "var(--bg-elevated)",
+                            border: "1px solid var(--border)",
                             borderRadius: "20px",
                             fontFamily: "IBM Plex Mono, monospace",
                             fontSize: "13px",
-                            color: selectedTool?.service_id === tool.service_id ? "var(--bg-primary)" : "var(--text-primary)",
-                            cursor: selectedTool === null ? "pointer" : "not-allowed",
-                            transition: "all 150ms ease",
-                            opacity: 0,
-                            animation: "fadeInUp 300ms ease forwards",
-                            animationDelay: `${toolIndex * 80}ms`,
-                            animationFillMode: "forwards"
+                            color: "var(--text-primary)",
+                            cursor: "pointer",
+                            transition: "all 150ms ease"
                           }}
                           onMouseEnter={(e) => {
-                            if (selectedTool === null) {
-                              e.currentTarget.style.borderColor = "var(--accent-primary)";
-                              e.currentTarget.style.color = "var(--accent-primary)";
-                            }
+                            e.currentTarget.style.borderColor = "var(--accent-primary)";
+                            e.currentTarget.style.color = "var(--accent-primary)";
                           }}
                           onMouseLeave={(e) => {
-                            if (selectedTool === null) {
-                              e.currentTarget.style.borderColor = "var(--border)";
-                              e.currentTarget.style.color = "var(--text-primary)";
-                            }
+                            e.currentTarget.style.borderColor = "var(--border)";
+                            e.currentTarget.style.color = "var(--text-primary)";
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -412,10 +605,10 @@ export default function PlaygroundPage() {
                             <span>{tool.name}</span>
                           </div>
                           <span style={{
-                            color: selectedTool?.service_id === tool.service_id ? "var(--bg-primary)" : "var(--accent-primary)",
+                            color: "var(--accent-primary)",
                             fontWeight: "600"
                           }}>
-                            ${tool.price_usd.toFixed(2)}
+                            ${tool.priceUsd.toFixed(2)}
                           </span>
                         </button>
                       ))}
@@ -434,7 +627,7 @@ export default function PlaygroundPage() {
               );
             }
 
-            if (msg.type === "tool_call") {
+            if (msg.role === "tool_call") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -460,17 +653,76 @@ export default function PlaygroundPage() {
                       fontFamily: "IBM Plex Mono, monospace",
                       fontSize: "13px",
                       color: "var(--text-muted)",
-                      whiteSpace: "pre-line",
                       lineHeight: "1.6"
                     }}>
-                      {msg.content}
+                      Querying Registry...<br/>
+                      Found: {msg.service} · ${msg.cost}<br/>
+                      Requesting payment authorization...
                     </div>
                   </div>
                 </div>
               );
             }
 
-            if (msg.type === "payment_required") {
+            if (msg.role === "payment") {
+              // OpenAI payment with token breakdown
+              if (msg.pendingResponse !== undefined) {
+                return (
+                  <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div style={{
+                      background: 'var(--bg-elevated)',
+                      border: '1px solid rgba(0,255,136,0.3)',
+                      borderRadius: '4px',
+                      padding: '1rem',
+                      fontFamily: 'IBM Plex Mono',
+                      fontSize: '0.8rem',
+                      maxWidth: '70%'
+                    }}>
+                      <div style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>⚡ Payment Required</div>
+                      <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Service: {msg.service}</div>
+
+                      {msg.inputTokens && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginBottom: '0.25rem' }}>
+                          Tokens: {msg.inputTokens} input + {msg.outputTokens} output
+                        </div>
+                      )}
+
+                      <div style={{ color: 'var(--text-primary)', margin: '0.5rem 0' }}>
+                        Cost: <span style={{ color: 'var(--accent-primary)' }}>${msg.cost_usd?.toFixed(6)} USD</span>
+                        {' · '}
+                        <span style={{ color: 'var(--accent-primary)' }}>{msg.sol?.toFixed(8)} SOL</span>
+                      </div>
+
+                      {msg.solPrice && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginBottom: '0.75rem' }}>
+                          Rate: 1 SOL = ${msg.solPrice} USD
+                        </div>
+                      )}
+
+                      {!msg.approved && (
+                        <button
+                          onClick={() => handleApprovePayment(msg)}
+                          style={{
+                            background: 'var(--accent-primary)',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.5rem 1.25rem',
+                            fontFamily: 'IBM Plex Mono',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Approve with Phantom
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // Regular tool payment (original flow)
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -506,24 +758,15 @@ export default function PlaygroundPage() {
                         fontSize: "12px",
                         color: "var(--text-muted)"
                       }}>
-                        Cost: {msg.cost} · {msg.sol}
+                        Cost: ${msg.cost_usd?.toFixed(2)} · ~{msg.sol?.toFixed(6)} SOL
                       </div>
                     </div>
-                    {showApproveButton && index === messages.length - 1 && (
-                      <button
-                        onClick={handleApprove}
-                        className="btn btn-primary"
-                        style={{ width: "100%" }}
-                      >
-                        Approve with Phantom
-                      </button>
-                    )}
                   </div>
                 </div>
               );
             }
 
-            if (msg.type === "payment_confirmed") {
+            if (msg.role === "confirmed") {
               return (
                 <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -542,33 +785,7 @@ export default function PlaygroundPage() {
                       color: "var(--accent-primary)",
                       fontWeight: "600"
                     }}>
-                      {msg.content}
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-
-            if (msg.type === "error") {
-              return (
-                <div key={index} style={{ display: "flex", justifyContent: "flex-start" }}>
-                  <div style={{
-                    background: "rgba(255, 68, 85, 0.1)",
-                    border: "1px solid var(--danger)",
-                    borderRadius: "6px",
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px"
-                  }}>
-                    <span style={{ color: "var(--danger)", fontSize: "16px" }}>✕</span>
-                    <span style={{
-                      fontFamily: "IBM Plex Mono, monospace",
-                      fontSize: "13px",
-                      color: "var(--danger)",
-                      fontWeight: "600"
-                    }}>
-                      {msg.content}
+                      Payment Confirmed · Settled in {msg.ms}ms
                     </span>
                   </div>
                 </div>
@@ -578,42 +795,41 @@ export default function PlaygroundPage() {
             return null;
           })}
 
-          {typewriterText && (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={{
-                background: "var(--bg-surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "6px",
-                padding: "12px 16px",
-                maxWidth: "70%",
-                fontFamily: "IBM Plex Mono, monospace",
-                fontSize: "14px",
-                color: "var(--text-primary)",
-                lineHeight: "1.6"
-              }}>
-                {typewriterText}
-                <span style={{ opacity: 0.5 }}>▊</span>
-              </div>
-            </div>
-          )}
-
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div style={{
           borderTop: "1px solid var(--border)",
           padding: "24px 32px",
           background: "var(--bg-surface)"
         }}>
+          {chosenTool && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 12px',
+              background: 'rgba(0,255,136,0.08)',
+              border: '1px solid rgba(0,255,136,0.3)',
+              borderRadius: '4px',
+              fontFamily: 'IBM Plex Mono',
+              fontSize: '0.75rem',
+              color: 'var(--accent-primary)',
+              marginBottom: '8px',
+            }}>
+              ● Active Tool: {chosenTool.name} · ${chosenTool.priceUsd}/call
+              <button onClick={() => setChosenTool(null)} style={{ marginLeft: 'auto', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+          )}
+
           <div style={{ display: "flex", gap: "12px", maxWidth: "1000px", margin: "0 auto" }}>
             <input
               type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSend()}
+              value={userMessage}
+              onChange={(e) => setUserMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && !awaitingToolSelection && handleSend()}
               placeholder="Ask the agent anything... (e.g. What is the weather in Chicago?)"
-              disabled={isProcessing}
+              disabled={awaitingToolSelection}
               style={{
                 flex: 1,
                 background: "var(--bg-elevated)",
@@ -628,11 +844,11 @@ export default function PlaygroundPage() {
             />
             <button
               onClick={handleSend}
-              disabled={isProcessing || !input.trim()}
+              disabled={awaitingToolSelection || !userMessage.trim()}
               className="btn btn-primary"
               style={{
                 padding: "14px 28px",
-                opacity: isProcessing || !input.trim() ? 0.5 : 1
+                opacity: awaitingToolSelection || !userMessage.trim() ? 0.5 : 1
               }}
             >
               Send
@@ -640,13 +856,14 @@ export default function PlaygroundPage() {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes blink {
-          0%, 50%, 100% { opacity: 1; }
-          25%, 75% { opacity: 0; }
-        }
-      `}</style>
     </div>
+  );
+}
+
+export default function PlaygroundPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PlaygroundContent />
+    </Suspense>
   );
 }

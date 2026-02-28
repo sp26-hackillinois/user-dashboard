@@ -1,22 +1,33 @@
-import { Connection, PublicKey } from '@solana/web3.js'
-
 const WALLET_ADDRESS = 'AuofYo21iiX8NQtgWBXLRFMiWfv83z2CbnhPNen6WNt5'
-const connection = new Connection(
-  process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
-  'confirmed'
-)
+
+let connection = null
+
+async function getConnection() {
+  if (!connection) {
+    const { Connection } = await import('@solana/web3.js')
+    connection = new Connection(
+      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
+      'confirmed'
+    )
+  }
+  return connection
+}
 
 export async function getWalletBalance() {
-  const lamports = await connection.getBalance(new PublicKey(WALLET_ADDRESS))
+  const { PublicKey } = await import('@solana/web3.js')
+  const conn = await getConnection()
+  const lamports = await conn.getBalance(new PublicKey(WALLET_ADDRESS))
   return (lamports / 1_000_000_000).toFixed(4)
 }
 
 export async function getParsedTransactions() {
+  const { PublicKey } = await import('@solana/web3.js')
+  const conn = await getConnection()
   const pubkey = new PublicKey(WALLET_ADDRESS)
-  const signatures = await connection.getSignaturesForAddress(pubkey, { limit: 20 })
+  const signatures = await conn.getSignaturesForAddress(pubkey, { limit: 20 })
   const parsed = await Promise.all(
     signatures.map(async (sig) => {
-      const tx = await connection.getParsedTransaction(sig.signature, {
+      const tx = await conn.getParsedTransaction(sig.signature, {
         commitment: 'confirmed',
         maxSupportedTransactionVersion: 0,
       })

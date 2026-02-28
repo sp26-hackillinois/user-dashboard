@@ -1,21 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchRegistry } from "@/services/api";
+import { API_REGISTRY, type ApiTool } from "@/lib/registry";
 
-const categories = ["All", "Weather", "Finance", "Web Search", "AI & NLP", "Blockchain Data", "Travel"];
+const CATEGORIES = [
+  'All', 'Weather', 'Finance', 'News', 'Web Search',
+  'LLM / AI', 'AI & NLP', 'Sports', 'Food', 'Travel',
+  'Blockchain Data', 'Data & Stats'
+];
 
 export default function BazaarPage() {
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<any[]>(
+    API_REGISTRY.map(item => ({
+      name: item.name,
+      description: item.description,
+      cost: `$${item.priceUsd.toFixed(2)}`,
+      id: item.id,
+      category: item.category
+    }))
+  );
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [filteredServices, setFilteredServices] = useState<any[]>([]);
+  const [filteredServices, setFilteredServices] = useState<any[]>(services);
 
+  // All services loaded from frontend registry only - no backend calls
   useEffect(() => {
-    fetchRegistry().then((data) => {
-      setServices(data);
-      setFilteredServices(data);
-    });
-  }, []);
+    setFilteredServices(services);
+  }, [services]);
 
   useEffect(() => {
     if (selectedCategory === "All") {
@@ -153,7 +163,7 @@ export default function BazaarPage() {
             overflowX: "auto",
             paddingBottom: "8px"
           }}>
-            {categories.map((category) => (
+            {CATEGORIES.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}

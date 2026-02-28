@@ -1,49 +1,43 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import { createCharge } from "@/services/api";
-import api from "@/services/api";
-import { registry } from "@/data/registry";
+import { API_REGISTRY, type ApiTool } from "@/lib/registry";
 
-const categories = ["All", "Weather", "Finance", "Web Search", "AI & NLP", "Blockchain Data", "Travel"];
+const CATEGORIES = [
+  'All', 'Weather', 'Finance', 'News', 'Web Search',
+  'LLM / AI', 'AI & NLP', 'Sports', 'Food', 'Travel',
+  'Blockchain Data', 'Data & Stats'
+];
+
+const MICROPAY_API_KEY = 'mp_live_demo_key';
+const DOCS_URL = '#';
+
+const getModelName = (toolId: string) => `micropay/${toolId.replace(/_/g, '-')}`;
 
 export default function BazaarPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [services, setServices] = useState(registry);
-  const [filteredServices, setFilteredServices] = useState(registry);
-  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [testResponse, setTestResponse] = useState<any>(null);
-  const [testLoading, setTestLoading] = useState(false);
-  const [testError, setTestError] = useState<string | null>(null);
+  const [services, setServices] = useState<ApiTool[]>(API_REGISTRY);
+  const [filteredServices, setFilteredServices] = useState<ApiTool[]>(API_REGISTRY);
+  const [keyPopupTool, setKeyPopupTool] = useState<ApiTool | null>(null);
+  const [copiedField, setCopiedField] = useState<'key' | 'model' | null>(null);
 
-  // Fetch services from backend registry on mount
+  // All services loaded from frontend registry only
   useEffect(() => {
-    async function loadServices() {
-      try {
-        const res = await api.get('/v1/registry/discover');
-        if (res.data?.results?.length > 0) {
-          setServices(res.data.results);
-        }
-      } catch {
-        // fallback to local registry.js
-        setServices(registry);
-      }
-    }
-    loadServices();
+    setServices(API_REGISTRY);
+    setFilteredServices(API_REGISTRY);
   }, []);
 
   useEffect(() => {
     let filtered = services;
 
-    // Apply category filter
     if (selectedCategory !== "All") {
       filtered = filtered.filter(s => s.category === selectedCategory);
     }
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(s =>
@@ -57,60 +51,26 @@ export default function BazaarPage() {
     setFilteredServices(filtered);
   }, [searchQuery, selectedCategory, services]);
 
-  const handleTestClick = (serviceId: string) => {
-    if (expandedServiceId === serviceId) {
-      setExpandedServiceId(null);
-      setTestResponse(null);
-      setTestError(null);
-    } else {
-      setExpandedServiceId(serviceId);
-      setTestResponse(null);
-      setTestError(null);
-    }
-  };
+  function openKeyPopup(tool: ApiTool) {
+    setKeyPopupTool(tool);
+  }
 
-  const handleRunTest = async (service: any) => {
-    setTestLoading(true);
-    setTestError(null);
-    setTestResponse(null);
+  function closeKeyPopup() {
+    setKeyPopupTool(null);
+    setCopiedField(null);
+  }
 
-    try {
-      const sourceWallet = walletAddress || (document.getElementById(`wallet-input-${service.service_id}`) as HTMLInputElement)?.value;
-
-      if (!sourceWallet) {
-        setTestError("Please provide a source wallet address");
-        setTestLoading(false);
-        return;
-      }
-
-      const result = await createCharge({
-        service_id: service.service_id,  // e.g. "srv_001"
-        source_wallet: sourceWallet,     // from input or connected Phantom wallet
-      });
-
-      setTestResponse(result);
-    } catch (err: any) {
-      const message = err?.response?.data?.message || err.message || 'Unknown error';
-      setTestError(message);
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).solana) {
-      (window as any).solana.connect({ onlyIfTrusted: true })
-        .then((res: any) => setWalletAddress(res.publicKey.toString()))
-        .catch(() => {});
-    }
-  }, []);
+  async function copyToClipboard(text: string, field: 'key' | 'model') {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  }
 
   return (
     <div style={{ display: "flex" }}>
       <Sidebar />
       <main style={{ marginLeft: "240px", flex: 1, minHeight: "100vh", overflowY: "auto", background: "var(--bg-primary)" }}>
         <div className="content-wrapper">
-          {/* Top Bar */}
           <div style={{ marginBottom: "40px" }}>
             <h1 style={{ fontFamily: "Syne, sans-serif", fontSize: "32px", fontWeight: "700", color: "var(--text-primary)", marginBottom: "8px" }}>
               API Bazaar
@@ -119,7 +79,6 @@ export default function BazaarPage() {
               Discover and test available APIs
             </p>
 
-            {/* Search Bar */}
             <input
               type="text"
               value={searchQuery}
@@ -142,14 +101,13 @@ export default function BazaarPage() {
               onBlur={(e) => e.target.style.borderColor = "var(--border)"}
             />
 
-            {/* Category Filter Pills */}
             <div style={{
               display: "flex",
               gap: "12px",
               overflowX: "auto",
               paddingBottom: "8px"
             }}>
-              {categories.map((category) => (
+              {CATEGORIES.map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
@@ -173,45 +131,57 @@ export default function BazaarPage() {
             </div>
           </div>
 
-          {/* API Grid */}
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
             gap: "24px"
           }}>
             {filteredServices.map((service) => (
-              <div key={service.service_id}>
-                <div
-                  className="service-card"
-                  style={{
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "4px",
-                    padding: "24px",
-                    transition: "all 150ms ease"
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
-                    <h4 style={{
-                      fontFamily: "Syne, sans-serif",
-                      fontSize: "18px",
-                      fontWeight: "700",
-                      color: "var(--text-primary)"
+              <div
+                key={service.id}
+                className="service-card"
+                style={{
+                  background: "var(--bg-elevated)",
+                  border: service.id === 'openai_chat' ? "1px solid var(--accent-secondary)" : "1px solid var(--border)",
+                  borderRadius: "4px",
+                  padding: "24px",
+                  transition: "all 150ms ease"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
+                  <h4 style={{
+                    fontFamily: "Syne, sans-serif",
+                    fontSize: "18px",
+                    fontWeight: "700",
+                    color: "var(--text-primary)"
+                  }}>
+                    {service.name}
+                  </h4>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <span style={{
+                      background: "rgba(90, 90, 122, 0.2)",
+                      color: "var(--text-muted)",
+                      padding: "4px 8px",
+                      borderRadius: "3px",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      fontFamily: "IBM Plex Mono, monospace"
                     }}>
-                      {service.name}
-                    </h4>
-                    <div style={{ display: "flex", gap: "6px" }}>
+                      {service.category}
+                    </span>
+                    {service.id === 'openai_chat' ? (
                       <span style={{
-                        background: "rgba(90, 90, 122, 0.2)",
-                        color: "var(--text-muted)",
+                        background: "rgba(138, 92, 246, 0.15)",
+                        color: "var(--accent-secondary)",
                         padding: "4px 8px",
                         borderRadius: "3px",
                         fontSize: "10px",
                         fontWeight: "600",
                         fontFamily: "IBM Plex Mono, monospace"
                       }}>
-                        {service.category}
+                        LIVE ⚡
                       </span>
+                    ) : (
                       <span style={{
                         background: "rgba(0, 255, 136, 0.15)",
                         color: "var(--accent-primary)",
@@ -223,185 +193,92 @@ export default function BazaarPage() {
                       }}>
                         LIVE
                       </span>
-                    </div>
-                  </div>
-                  <p style={{
-                    fontSize: "14px",
-                    color: "var(--text-muted)",
-                    marginBottom: "16px",
-                    lineHeight: "1.5"
-                  }}>
-                    {service.description}
-                  </p>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{
-                      fontFamily: "IBM Plex Mono, monospace",
-                      fontSize: "20px",
-                      fontWeight: "600",
-                      color: "var(--accent-primary)"
-                    }}>
-                      ${service.price_usd.toFixed(2)}
-                    </span>
-                    <button
-                      onClick={() => handleTestClick(service.service_id)}
-                      className="btn btn-secondary"
-                      style={{ fontSize: "13px", padding: "8px 16px" }}
-                    >
-                      {expandedServiceId === service.service_id ? "Close" : "Test"}
-                    </button>
+                    )}
                   </div>
                 </div>
-
-                {/* Test Panel */}
-                {expandedServiceId === service.service_id && (
+                <p style={{
+                  fontSize: "14px",
+                  color: "var(--text-muted)",
+                  marginBottom: "16px",
+                  lineHeight: "1.5"
+                }}>
+                  {service.description}
+                </p>
+                {service.id === 'openai_chat' && (
                   <div style={{
-                    background: "var(--bg-surface)",
-                    border: "1px solid var(--border)",
-                    borderTop: "none",
-                    borderRadius: "0 0 4px 4px",
-                    padding: "20px",
-                    marginTop: "-4px"
+                    border: '1px solid var(--accent-secondary)',
+                    borderRadius: '4px',
+                    padding: '6px 10px',
+                    fontSize: '0.65rem',
+                    fontFamily: 'IBM Plex Mono',
+                    color: 'var(--accent-secondary)',
+                    marginBottom: '12px',
+                    display: 'inline-block',
                   }}>
-                    <div style={{
-                      fontFamily: "Syne, sans-serif",
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      color: "var(--text-primary)",
-                      marginBottom: "4px"
-                    }}>
-                      Testing: {service.name}
-                    </div>
-                    <div style={{
-                      fontFamily: "IBM Plex Mono, monospace",
-                      fontSize: "12px",
-                      color: "var(--text-muted)",
-                      marginBottom: "16px"
-                    }}>
-                      Cost: ${service.price_usd.toFixed(2)} per call
-                    </div>
-
-                    {!walletAddress && (
-                      <div style={{ marginBottom: "16px" }}>
-                        <label style={{
-                          display: "block",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "var(--text-primary)",
-                          marginBottom: "8px"
-                        }}>
-                          Source Wallet
-                        </label>
-                        <input
-                          id={`wallet-input-${service.service_id}`}
-                          type="text"
-                          placeholder="Enter Solana wallet address"
-                          style={{
-                            width: "100%",
-                            background: "var(--bg-elevated)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "4px",
-                            padding: "10px 12px",
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "13px",
-                            color: "var(--text-primary)",
-                            transition: "border-color 150ms ease"
-                          }}
-                          onFocus={(e) => e.target.style.borderColor = "var(--accent-primary)"}
-                          onBlur={(e) => e.target.style.borderColor = "var(--border)"}
-                        />
-                      </div>
-                    )}
-
-                    {walletAddress && (
-                      <div style={{
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "12px",
-                        color: "var(--text-muted)",
-                        marginBottom: "16px"
-                      }}>
-                        source_wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => handleRunTest(service)}
-                      disabled={testLoading}
-                      className="btn btn-primary"
-                      style={{ width: "100%", marginBottom: "16px" }}
-                    >
-                      {testLoading ? "Running..." : "Run Test Call"}
-                    </button>
-
-                    {testError && (
-                      <div style={{
-                        background: "rgba(255, 68, 85, 0.1)",
-                        border: "1px solid var(--danger)",
-                        borderRadius: "4px",
-                        padding: "12px",
-                        fontFamily: "IBM Plex Mono, monospace",
-                        fontSize: "13px",
-                        color: "var(--danger)",
-                        marginBottom: "16px"
-                      }}>
-                        Error: {testError}
-                      </div>
-                    )}
-
-                    {testResponse && (
-                      <div>
-                        <div style={{
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          color: "var(--text-primary)",
-                          marginBottom: "8px"
-                        }}>
-                          Response:
-                        </div>
-                        <div style={{
-                          background: "var(--bg-primary)",
-                          border: "1px solid var(--border)",
-                          borderRadius: "4px",
-                          padding: "12px",
-                          fontFamily: "IBM Plex Mono, monospace",
-                          fontSize: "12px",
-                          color: "var(--text-primary)",
-                          lineHeight: "1.8"
-                        }}>
-                          <div>Status: {testResponse.status}</div>
-                          <div>Service: {testResponse.service_name}</div>
-                          <div>Amount USD: ${testResponse.amount_usd}</div>
-                          <div>Amount SOL: {testResponse.amount_sol}</div>
-                          <div>Exchange Rate: ${testResponse.exchange_rate_sol_usd}/SOL</div>
-                          <div>Destination: {testResponse.destination_wallet}</div>
-                        </div>
-                        <details style={{ marginTop: "12px" }}>
-                          <summary style={{
-                            fontSize: "12px",
-                            color: "var(--text-muted)",
-                            cursor: "pointer",
-                            fontFamily: "IBM Plex Mono, monospace"
-                          }}>
-                            View raw JSON
-                          </summary>
-                          <pre style={{
-                            background: "var(--bg-primary)",
-                            border: "1px solid var(--border)",
-                            borderRadius: "4px",
-                            padding: "12px",
-                            marginTop: "8px",
-                            fontFamily: "IBM Plex Mono, monospace",
-                            fontSize: "11px",
-                            color: "var(--text-primary)",
-                            overflowX: "auto",
-                            lineHeight: "1.6"
-                          }}>
-                            {JSON.stringify(testResponse, null, 2)}
-                          </pre>
-                        </details>
-                      </div>
-                    )}
+                    FULLY INTEGRATED · GPT-4o
                   </div>
                 )}
+                <div style={{ marginBottom: "12px" }}>
+                  <span style={{
+                    fontFamily: "IBM Plex Mono, monospace",
+                    fontSize: "20px",
+                    fontWeight: "600",
+                    color: service.id === 'openai_chat' ? "var(--accent-secondary)" : "var(--accent-primary)"
+                  }}>
+                    ${service.priceUsd.toFixed(2)}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => router.push(`/playground?toolId=${service.id}`)}
+                    style={{
+                      flex: 1,
+                      padding: "0.5rem",
+                      background: "transparent",
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      color: "var(--text-muted)",
+                      fontFamily: "IBM Plex Mono, monospace",
+                      fontSize: "0.75rem",
+                      cursor: "pointer",
+                      transition: "all 150ms ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent-primary)";
+                      e.currentTarget.style.color = "var(--accent-primary)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border)";
+                      e.currentTarget.style.color = "var(--text-muted)";
+                    }}
+                  >
+                    Test in Playground
+                  </button>
+                  <button
+                    onClick={() => openKeyPopup(service)}
+                    style={{
+                      flex: 1,
+                      padding: "0.5rem",
+                      background: "var(--accent-primary)",
+                      border: "none",
+                      borderRadius: "4px",
+                      color: "#000",
+                      fontFamily: "IBM Plex Mono, monospace",
+                      fontSize: "0.75rem",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 150ms ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.opacity = "0.9";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                    }}
+                  >
+                    Get Key
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -419,6 +296,147 @@ export default function BazaarPage() {
           )}
         </div>
       </main>
+
+      {keyPopupTool && (
+        <div
+          onClick={closeKeyPopup}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              padding: '2rem',
+              width: '480px',
+              maxWidth: '90vw',
+              position: 'relative',
+            }}
+          >
+            <button
+              onClick={closeKeyPopup}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontFamily: 'IBM Plex Mono',
+                fontSize: '1rem',
+              }}
+            >
+              ✕
+            </button>
+
+            <h2 style={{ fontFamily: 'Syne', fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+              {keyPopupTool.name}
+            </h2>
+            <p style={{ fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Get started with this API
+            </p>
+
+            <label style={{ display: 'block', fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+              Micropay API Key
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem' }}>
+              <code style={{
+                flex: 1,
+                padding: '0.5rem 0.75rem',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '4px',
+                fontFamily: 'IBM Plex Mono',
+                fontSize: '0.8rem',
+                color: 'var(--accent-primary)',
+              }}>
+                {MICROPAY_API_KEY}
+              </code>
+              <button
+                onClick={() => copyToClipboard(MICROPAY_API_KEY, 'key')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: copiedField === 'key' ? 'rgba(0,255,136,0.15)' : 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  color: copiedField === 'key' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  fontFamily: 'IBM Plex Mono',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {copiedField === 'key' ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <label style={{ display: 'block', fontFamily: 'IBM Plex Mono', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+              Model Name
+            </label>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem' }}>
+              <code style={{
+                flex: 1,
+                padding: '0.5rem 0.75rem',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '4px',
+                fontFamily: 'IBM Plex Mono',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
+              }}>
+                {getModelName(keyPopupTool.id)}
+              </code>
+              <button
+                onClick={() => copyToClipboard(getModelName(keyPopupTool.id), 'model')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: copiedField === 'model' ? 'rgba(0,255,136,0.15)' : 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  color: copiedField === 'model' ? 'var(--accent-primary)' : 'var(--text-muted)',
+                  fontFamily: 'IBM Plex Mono',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {copiedField === 'model' ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: 'var(--accent-primary)',
+                fontFamily: 'IBM Plex Mono',
+                fontSize: '0.8rem',
+                textDecoration: 'none',
+                border: '1px solid rgba(0,255,136,0.3)',
+                borderRadius: '4px',
+                padding: '0.5rem 1rem',
+              }}
+            >
+              View Documentation →
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
