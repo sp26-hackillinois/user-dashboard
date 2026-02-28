@@ -14,7 +14,6 @@ export default function BazaarPage() {
     API_REGISTRY.map(item => ({
       name: item.name,
       description: item.description,
-      cost: `$${item.priceUsd.toFixed(2)}`,
       id: item.id,
       category: item.category
     }))
@@ -249,15 +248,7 @@ export default function BazaarPage() {
                 }}>
                   {service.description}
                 </p>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{
-                    fontFamily: "IBM Plex Mono, monospace",
-                    fontSize: "20px",
-                    fontWeight: "600",
-                    color: "var(--accent-primary)"
-                  }}>
-                    {service.cost}
-                  </span>
+                <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
                   <span style={{
                     fontFamily: "IBM Plex Mono, monospace",
                     fontSize: "11px",

@@ -218,17 +218,7 @@ export default function BazaarPage() {
                     FULLY INTEGRATED · GPT-4o
                   </div>
                 )}
-                <div style={{ marginBottom: "12px" }}>
-                  <span style={{
-                    fontFamily: "IBM Plex Mono, monospace",
-                    fontSize: "20px",
-                    fontWeight: "600",
-                    color: service.id === 'openai_chat' ? "var(--accent-secondary)" : "var(--accent-primary)"
-                  }}>
-                    ${service.priceUsd.toFixed(2)}
-                  </span>
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                   <button
                     onClick={() => router.push(`/playground?toolId=${service.id}`)}
                     style={{

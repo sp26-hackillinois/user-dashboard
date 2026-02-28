@@ -104,7 +104,7 @@ function PlaygroundContent() {
         setChosenTool(tool);
         setMessages(prev => [...prev, {
           role: 'system',
-          content: `Tool preselected from Bazaar: ${tool.name} · $${tool.priceUsd.toFixed(2)}/call`
+          content: `Tool preselected from Bazaar: ${tool.name}`
         }]);
       }
     }
@@ -604,12 +604,6 @@ function PlaygroundContent() {
                             <span>{emojiMap[tool.category] || "📦"}</span>
                             <span>{tool.name}</span>
                           </div>
-                          <span style={{
-                            color: "var(--accent-primary)",
-                            fontWeight: "600"
-                          }}>
-                            ${tool.priceUsd.toFixed(2)}
-                          </span>
                         </button>
                       ))}
                     </div>
@@ -817,7 +811,7 @@ function PlaygroundContent() {
               color: 'var(--accent-primary)',
               marginBottom: '8px',
             }}>
-              ● Active Tool: {chosenTool.name} · ${chosenTool.priceUsd}/call
+              ● Active Tool: {chosenTool.name}
               <button onClick={() => setChosenTool(null)} style={{ marginLeft: 'auto', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
             </div>
           )}
