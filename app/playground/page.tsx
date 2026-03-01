@@ -40,11 +40,6 @@ function PlaygroundContent() {
   const searchParams = useSearchParams();
   const toolId = searchParams.get('toolId');
 
-  const OPENAI_API_KEY = process.env.NEXT_PUBLIC_OPENAI_API_KEY || ''
-  const OPENAI_DESTINATION_WALLET = '2Hn6ESeMRqfVDTptanXgK6vDEpgJGnp4rG6Ls3dzszv8'
-  const GPT4O_INPUT_COST_PER_TOKEN = 0.000005   // $5 per 1M input tokens
-  const GPT4O_OUTPUT_COST_PER_TOKEN = 0.000015  // $15 per 1M output tokens
-
   const [userMessage, setUserMessage] = useState('');
   const [suggestedTools, setSuggestedTools] = useState<ApiTool[]>([]);
   const [chosenTool, setChosenTool] = useState<ApiTool | null>(null);
@@ -142,42 +137,20 @@ function PlaygroundContent() {
     outputTokens: number
     costUsd: number
   }> {
-    if (!OPENAI_API_KEY) throw new Error('OpenAI API key not configured')
+    const { callOpenAIChat } = await import('@/services/api')
+    const result = await callOpenAIChat({ prompt, model: 'gpt-4o' })
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful assistant integrated into Micropay Bazaar — a marketplace for AI-powered micro-transaction APIs on Solana. Answer concisely and helpfully.'
-          },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 300,
-      })
-    })
-
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err?.error?.message || `OpenAI error: ${res.status}`)
-    }
-
-    const data = await res.json()
-    const inputTokens = data.usage?.prompt_tokens || 0
-    const outputTokens = data.usage?.completion_tokens || 0
-    const costUsd = (inputTokens * GPT4O_INPUT_COST_PER_TOKEN) + (outputTokens * GPT4O_OUTPUT_COST_PER_TOKEN)
+    // Calculate real cost from token usage
+    // gpt-4o: $5/1M input, $15/1M output
+    const costUsd =
+      (result.inputTokens * 0.000005) +
+      (result.outputTokens * 0.000015)
 
     return {
-      response: data.choices?.[0]?.message?.content || 'No response.',
-      inputTokens,
-      outputTokens,
-      costUsd: Math.max(costUsd, 0.000001), // minimum to avoid 0 lamports
+      response: result.response,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      costUsd: Math.max(costUsd, 0.000001),
     }
   }
 
@@ -189,26 +162,6 @@ function PlaygroundContent() {
     } catch {
       return 150 // fallback price
     }
-  }
-
-  async function sendSolPayment(amountSol: number, sourceWallet: string): Promise<string> {
-    const { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } = await import('@solana/web3.js')
-
-    const connection = new Connection('https://api.devnet.solana.com', 'confirmed')
-    const fromPubkey = new PublicKey(sourceWallet)
-    const toPubkey = new PublicKey(OPENAI_DESTINATION_WALLET)
-    const lamports = Math.round(amountSol * LAMPORTS_PER_SOL)
-
-    const transaction = new Transaction().add(
-      SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-    )
-
-    const { blockhash } = await connection.getLatestBlockhash()
-    transaction.recentBlockhash = blockhash
-    transaction.feePayer = fromPubkey
-
-    const { signature } = await (window as any).solana.signAndSendTransaction(transaction)
-    return signature
   }
 
   async function runOpenAIFlow(query: string) {

@@ -31,4 +31,24 @@ export async function generateApiKey() {
   }
 }
 
+// Call OpenAI Chat via backend
+export async function callOpenAIChat({ prompt, model = 'gpt-4o' }: { prompt: string; model?: string }) {
+  const res = await fetch('https://micropay.up.railway.app/api/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: prompt,
+      model: model,
+    })
+  })
+  if (!res.ok) throw new Error(`AI chat failed: ${res.status}`)
+  const data = await res.json()
+  return {
+    response: data.reply,
+    inputTokens: data.usage?.prompt_tokens || 0,
+    outputTokens: data.usage?.completion_tokens || 0,
+    totalTokens: data.usage?.total_tokens || 0,
+  }
+}
+
 export default api
