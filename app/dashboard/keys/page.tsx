@@ -142,7 +142,7 @@ export default function APIKeysPage() {
 
         <div style={{ marginTop: "24px" }}>
           <a
-            href="http://localhost:3000/api-docs"
+            href="https://micropay.up.railway.app/"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary"

@@ -12,7 +12,7 @@ const CATEGORIES = [
 ];
 
 const MICROPAY_API_KEY = 'mp_live_demo_key';
-const DOCS_URL = '#';
+const DOCS_URL = 'https://micropay.up.railway.app/';
 
 const getModelName = (toolId: string) => `micropay/${toolId.replace(/_/g, '-')}`;
 

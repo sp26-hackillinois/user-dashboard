@@ -60,7 +60,7 @@ export default function BazaarPage() {
           </div>
           <div style={{ display: "flex", gap: "12px" }}>
             <a
-              href="http://localhost:3000/api-docs"
+              href="https://micropay.up.railway.app/"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary"
