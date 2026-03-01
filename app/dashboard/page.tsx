@@ -43,8 +43,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getDashboardStats()
-      .then(data => setStats(data))
-      .catch(() => {}) // silent fail
+      .then(data => {
+        console.log('STATS:', data)
+        setStats(data)
+      })
+      .catch(err => console.error('STATS ERROR:', err))
   }, [])
 
   const handleCopy = () => {
@@ -278,10 +281,11 @@ export default function DashboardPage() {
             animation: "fadeIn 300ms ease forwards"
           }}>
           <colgroup>
-            <col style={{ width: '25%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '15%' }} />
-            <col style={{ width: '30%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '28%' }} />
             <col style={{ width: '15%' }} />
           </colgroup>
           <thead>
@@ -289,6 +293,7 @@ export default function DashboardPage() {
               <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaction ID</th>
               <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Amount (SOL)</th>
               <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Direction</th>
               <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Description</th>
               <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Time</th>
             </tr>
@@ -296,7 +301,7 @@ export default function DashboardPage() {
           <tbody>
             {stats.transactions.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{
+                <td colSpan={6} style={{
                   textAlign: 'center',
                   padding: '2rem',
                   color: 'var(--text-muted)',
@@ -309,12 +314,22 @@ export default function DashboardPage() {
             ) : (
               stats.transactions.map((tx, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.id}</td>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.id}</td>
                   <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.amount}</td>
                   <td style={{ padding: '0.75rem' }}>
                     <span className={`badge-${tx.status}`}>{tx.status.toUpperCase()}</span>
                   </td>
-                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tx.description}</td>
+                  <td style={{ padding: '0.75rem' }}>
+                    <span style={{
+                      fontFamily: 'Martian Mono, monospace',
+                      fontSize: '0.72rem',
+                      fontWeight: '600',
+                      color: tx.direction === 'outgoing' ? 'var(--danger)' : 'var(--accent-primary)',
+                    }}>
+                      {tx.direction === 'outgoing' ? '↑ OUT' : '↓ IN'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.description}</td>
                   <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tx.time}</td>
                 </tr>
               ))
