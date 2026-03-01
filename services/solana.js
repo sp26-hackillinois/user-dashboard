@@ -26,10 +26,25 @@ export async function getParsedTransactions() {
   }))
 }
 
+export async function getTotalTransactionCount() {
+  try {
+    const res = await fetch(
+      `${BASE_URL}/v1/charges/count`
+      // no auth needed
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.count ?? null
+  } catch {
+    return null
+  }
+}
+
 export async function getDashboardStats() {
-  const [balance, transactions] = await Promise.all([
+  const [balance, transactions, totalCount] = await Promise.all([
     getWalletBalance(),
     getParsedTransactions(),
+    getTotalTransactionCount(),
   ])
   const totalVolume = transactions
     .reduce((acc, tx) => acc + parseFloat(tx.amount), 0)
@@ -40,7 +55,7 @@ export async function getDashboardStats() {
     : '100.0'
   return {
     totalVolume: `${totalVolume} SOL`,
-    transactionCount: transactions.length,
+    transactionCount: totalCount ?? transactions.length,
     successRate: `${successRate}%`,
     currentBalance: `${balance} SOL`,
     transactions,
