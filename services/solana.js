@@ -12,7 +12,7 @@ export async function getParsedTransactions() {
   const res = await fetch(`${BASE_URL}/v1/transactions/${WALLET}`)
   if (!res.ok) throw new Error(`Transactions failed: ${res.status}`)
   const data = await res.json()
-  return (data.transactions || []).map(tx => ({
+  return (data.transactions || []).slice(0, 5).map(tx => ({
     id: tx.signature.slice(0, 12) + '...',
     fullSignature: tx.signature,
     status: tx.status,
