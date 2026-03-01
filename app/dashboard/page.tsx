@@ -286,18 +286,16 @@ export default function DashboardPage() {
                 animation: "fadeIn 300ms ease forwards"
               }}>
                 <colgroup>
-                  <col style={{ width: '20%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
-                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '15%' }} />
                   <col style={{ width: '30%' }} />
-                  <col style={{ width: '14%' }} />
+                  <col style={{ width: '15%' }} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaction ID</th>
                     <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Amount (SOL)</th>
-                    <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Direction</th>
                     <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
                     <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Description</th>
                     <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Time</th>
@@ -306,7 +304,7 @@ export default function DashboardPage() {
                 <tbody>
                   {stats.transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{
+                      <td colSpan={5} style={{
                         textAlign: 'center',
                         padding: '2rem',
                         color: 'var(--text-muted)',
@@ -321,16 +319,6 @@ export default function DashboardPage() {
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.id}</td>
                         <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.amount}</td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{
-                            fontFamily: 'Martian Mono, monospace',
-                            fontSize: '0.78rem',
-                            fontWeight: '600',
-                            color: tx.direction === 'outgoing' ? '#ff4444' : '#00ff88'
-                          }}>
-                            {tx.direction === 'outgoing' ? '↑ OUT' : '↓ IN'}
-                          </span>
-                        </td>
                         <td style={{ padding: '0.75rem' }}>
                           <span className={`badge-${tx.status}`}>{tx.status.toUpperCase()}</span>
                         </td>
