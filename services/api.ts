@@ -10,10 +10,11 @@ const api = axios.create({
 
 // POST /v1/charges — core payment endpoint
 // Backend looks up cost_usd and destination_wallet automatically from service_id
-export async function createCharge({ service_id, source_wallet }: { service_id: string; source_wallet: string }) {
+export async function createCharge({ service_id, source_wallet, amount_usd }: { service_id: string; source_wallet: string; amount_usd?: number }) {
   const res = await api.post('/v1/charges', {
     service_id,      // backend fetches cost + destination wallet from registry
     source_wallet,   // the wallet being charged (consumer/user wallet)
+    amount_usd: amount_usd ?? 0.05, // fallback to 0.05 if not provided
   })
   return res.data
   // Returns: { id, status, service_name, amount_usd, amount_sol,

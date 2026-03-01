@@ -88,6 +88,7 @@ function PlaygroundContent() {
   const [awaitingToolSelection, setAwaitingToolSelection] = useState(false);
   const [walletConnecting, setWalletConnecting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const toolInitialized = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -98,15 +99,16 @@ function PlaygroundContent() {
   }, [messages]);
 
   useEffect(() => {
-    if (toolId) {
-      const tool = API_REGISTRY.find(t => t.id === toolId);
-      if (tool) {
-        setChosenTool(tool);
-        setMessages(prev => [...prev, {
-          role: 'system',
-          content: `Tool preselected from Bazaar: ${tool.name}`
-        }]);
-      }
+    if (!toolId || toolInitialized.current) return;
+    toolInitialized.current = true;
+
+    const tool = API_REGISTRY.find(t => t.id === toolId);
+    if (tool) {
+      setChosenTool(tool);
+      setMessages(prev => [...prev, {
+        role: 'system',
+        content: `Tool preselected: ${tool.name} · ready to use.`
+      }]);
     }
   }, [toolId]);
 
@@ -265,7 +267,16 @@ function PlaygroundContent() {
     ))
 
     try {
-      const signature = await sendSolPayment(paymentMsg.sol!, walletAddress!)
+      const { createCharge } = await import('@/services/api');
+      const charge = await createCharge({
+        service_id: 'openai_chat',
+        source_wallet: walletAddress!,
+        amount_usd: paymentMsg.cost_usd!, // real token-based cost
+      });
+
+      const { Transaction } = await import('@solana/web3.js');
+      const tx = Transaction.from(Buffer.from(charge.transaction_payload, 'base64'));
+      const { signature } = await (window as any).solana.signAndSendTransaction(tx);
 
       // Show confirmation
       setMessages(prev => [...prev, {
@@ -325,6 +336,7 @@ function PlaygroundContent() {
       const charge = await createCharge({
         service_id: tool.id,
         source_wallet: walletAddress,
+        amount_usd: tool.priceUsd, // from ApiTool registry
       });
 
       setMessages(prev => [...prev, {
@@ -382,7 +394,13 @@ function PlaygroundContent() {
     setMessages(prev => [...prev, { role: 'user', content: query }]);
     setUserMessage('');
 
-    setChosenTool(null);
+    // If tool already chosen — skip discovery, run immediately
+    if (chosenTool) {
+      await runAgentCall(query, chosenTool);
+      return;
+    }
+
+    // No tool chosen — run discovery
     setAwaitingToolSelection(true);
 
     const suggestions = discoverTools(query, 3);
