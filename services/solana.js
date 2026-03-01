@@ -16,7 +16,6 @@ export async function getParsedTransactions() {
   )
   if (!res.ok) throw new Error(`Transactions failed: ${res.status}`)
   const data = await res.json()
-
   return (data.transactions || []).map(tx => ({
     id: tx.signature.slice(0, 12) + '...',
     fullSignature: tx.signature,
@@ -27,34 +26,23 @@ export async function getParsedTransactions() {
   }))
 }
 
-let _cache = null
-let _cacheAt = 0
-const TTL = 30_000
-
 export async function getDashboardStats() {
-  if (_cache && Date.now() - _cacheAt < TTL) return _cache
-
   const [balance, transactions] = await Promise.all([
     getWalletBalance(),
     getParsedTransactions(),
   ])
-
   const totalVolume = transactions
     .reduce((acc, tx) => acc + parseFloat(tx.amount), 0)
     .toFixed(6)
-
   const successCount = transactions.filter(t => t.status === 'settled').length
   const successRate = transactions.length > 0
     ? ((successCount / transactions.length) * 100).toFixed(1)
     : '100.0'
-
-  _cache = {
+  return {
     totalVolume: `${totalVolume} SOL`,
     transactionCount: transactions.length,
     successRate: `${successRate}%`,
     currentBalance: `${balance} SOL`,
     transactions,
   }
-  _cacheAt = Date.now()
-  return _cache
 }

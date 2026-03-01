@@ -16,21 +16,16 @@ const mockTransactionHistory = [
   { day: 'Sun', volume: 5.9, count: 590 },
 ];
 
-type Transaction = {
-  id: string;
-  amount: number;
-  status: "settled" | "failed";
-  description: string;
-  time: string;
-  fullSignature: string;
-};
-
 export default function DashboardPage() {
-  const [totalVolume, setTotalVolume] = useState("—");
-  const [transactionCount, setTransactionCount] = useState<number | string>("—");
-  const [successRate, setSuccessRate] = useState("—");
-  const [currentBalance, setCurrentBalance] = useState("—");
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // State — initialize with placeholders
+  const [stats, setStats] = useState({
+    totalVolume: '—',
+    transactionCount: 0,
+    successRate: '—',
+    currentBalance: '—',
+    transactions: [] as any[],
+  })
+  const [loaded, setLoaded] = useState(false)
   const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [transactionView, setTransactionView] = useState<"chart" | "table">("table");
@@ -49,24 +44,15 @@ export default function DashboardPage() {
   const apiKey = "mp_live_9x8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c";
 
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const stats = await getDashboardStats();
-        setTotalVolume(stats.totalVolume);
-        setTransactionCount(stats.transactionCount);
-        setSuccessRate(stats.successRate);
-        setCurrentBalance(stats.currentBalance);
-        setTransactions(stats.transactions as Transaction[]);
-      } catch {
-        setTotalVolume('—');
-        setTransactionCount('—');
-        setSuccessRate('—');
-        setCurrentBalance('—');
-        setTransactions([]);
-      }
-    }
-    loadStats();
-  }, []);
+    getDashboardStats()
+      .then(data => {
+        setStats(data)
+        setLoaded(true)
+      })
+      .catch(() => {
+        setLoaded(true) // show empty state, not spinner
+      })
+  }, [])
 
   const handleCopy = () => {
     navigator.clipboard.writeText(apiKey);
@@ -122,19 +108,19 @@ export default function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "40px" }}>
         <MetricCard
           title="Current Balance"
-          value={currentBalance}
+          value={stats.currentBalance}
           percentChange=""
           delay={0}
         />
         <MetricCard
           title="Transaction Count"
-          value={transactionCount.toString()}
+          value={stats.transactionCount.toString()}
           percentChange=""
           delay={100}
         />
         <MetricCard
           title="Success Rate"
-          value={successRate}
+          value={stats.successRate}
           percentChange=""
           delay={200}
         />
@@ -290,40 +276,40 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {transactions.length === 0 ? (
+            {!loaded ? (
               <tr>
                 <td colSpan={5} style={{
-                  textAlign: "center",
-                  color: "var(--text-muted)",
-                  fontFamily: "Martian Mono, monospace",
-                  fontSize: "0.75rem",
-                  padding: "2rem"
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'Martian Mono, monospace',
+                  fontSize: '0.75rem',
                 }}>
-                  Loading transactions...
+                  syncing transactions...
+                </td>
+              </tr>
+            ) : stats.transactions.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'Martian Mono, monospace',
+                  fontSize: '0.75rem',
+                }}>
+                  No transactions found.
                 </td>
               </tr>
             ) : (
-              transactions.map((txn) => (
-                <tr key={txn.fullSignature}>
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <code className="mono" style={{ fontSize: "13px" }}>{txn.id}</code>
+              stats.transactions.map((tx, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.id}</td>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem' }}>{tx.amount}</td>
+                  <td style={{ padding: '0.75rem' }}>
+                    <span className={`badge-${tx.status}`}>{tx.status.toUpperCase()}</span>
                   </td>
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span className="mono" style={{ fontWeight: "600" }}>{txn.amount}</span>
-                  </td>
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span className={`status-badge ${
-                      txn.status === "settled" ? "status-settled" : "status-failed"
-                    }`}>
-                      {txn.status === "settled" ? "Settled" : "Failed"}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--text-muted)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{txn.description}</td>
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span className="mono" style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                      {txn.time}
-                    </span>
-                  </td>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tx.description}</td>
+                  <td style={{ padding: '0.75rem', fontFamily: 'Martian Mono, monospace', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{tx.time}</td>
                 </tr>
               ))
             )}
