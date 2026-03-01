@@ -19,7 +19,7 @@ export async function getParsedTransactions() {
     status: tx.status,
     time: new Date(tx.time).toLocaleTimeString(),
     amount: Number(tx.amount_sol).toFixed(6),
-    direction: !tx.direction,
+    direction: tx.direction === 'incoming' ? 'outgoing' : 'incoming',
     description: tx.description,
   }))
 }
