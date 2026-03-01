@@ -1,20 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import MetricCard from "@/components/MetricCard";
 import Sidebar from "@/components/Sidebar";
 import { getDashboardStats } from "@/services/solana";
-
-const mockTreasuryData = [
-  { date: "Jan 1", value: 10.0 },
-  { date: "Jan 5", value: 10.12 },
-  { date: "Jan 10", value: 10.25 },
-  { date: "Jan 15", value: 10.41 },
-  { date: "Jan 20", value: 10.58 },
-  { date: "Jan 25", value: 10.72 },
-  { date: "Jan 30", value: 10.89 },
-];
 
 const mockTransactionHistory = [
   { day: 'Mon', volume: 2.1, count: 210 },
@@ -37,15 +27,13 @@ type Transaction = {
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [rpcError, setRpcError] = useState(false);
   const [totalVolume, setTotalVolume] = useState("0.0000 SOL");
-  const [transactionCount, setTransactionCount] = useState(0);
+  const [transactionCount, setTransactionCount] = useState<number | string>(0);
   const [successRate, setSuccessRate] = useState("100.0%");
   const [currentBalance, setCurrentBalance] = useState("0.0000 SOL");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [treasuryEnabled, setTreasuryEnabled] = useState(true);
   const [transactionView, setTransactionView] = useState<"chart" | "table">("table");
   const [registerFormSubmitted, setRegisterFormSubmitted] = useState(false);
   const [generatedServiceId, setGeneratedServiceId] = useState("");
@@ -71,8 +59,12 @@ export default function DashboardPage() {
         setSuccessRate(stats.successRate);
         setCurrentBalance(stats.currentBalance);
         setTransactions(stats.transactions as Transaction[]);
-      } catch (err) {
-        setRpcError(true);
+      } catch {
+        setTotalVolume('—');
+        setTransactionCount('—');
+        setSuccessRate('—');
+        setCurrentBalance('—');
+        setTransactions([]);
       } finally {
         setLoading(false);
       }
@@ -84,10 +76,6 @@ export default function DashboardPage() {
     navigator.clipboard.writeText(apiKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleToggleTreasury = () => {
-    setTreasuryEnabled(!treasuryEnabled);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -133,22 +121,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* RPC Error Banner */}
-      {rpcError && (
-        <div style={{
-          background: 'rgba(255, 170, 0, 0.1)',
-          border: '1px solid var(--warning)',
-          borderRadius: '4px',
-          padding: '0.5rem 1rem',
-          fontFamily: 'IBM Plex Mono',
-          fontSize: '0.75rem',
-          color: 'var(--warning)',
-          marginBottom: '1rem',
-        }}>
-          ⚠ Unable to reach Solana Devnet. Showing cached data.
-        </div>
-      )}
 
       {/* Metrics Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "40px" }}>
@@ -202,94 +174,6 @@ export default function DashboardPage() {
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* Treasury Section */}
-      <div id="treasury" style={{ marginBottom: "40px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <div>
-            <h2 className="section-header" style={{ marginBottom: "0" }}>Treasury Management</h2>
-            <p className="section-subheader">Autonomous Yield via Jupiter</p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "14px", color: "var(--text-muted)", fontWeight: "600" }}>
-              Enable Autonomous Yield
-            </span>
-            <div
-              className={`treasury-toggle ${treasuryEnabled ? "treasury-toggle-active" : ""}`}
-              onClick={handleToggleTreasury}
-            >
-              <div className="treasury-toggle-knob" />
-            </div>
-          </div>
-        </div>
-
-        {treasuryEnabled && (
-          <div style={{
-            background: "var(--bg-elevated)",
-            border: "1px solid var(--border)",
-            borderRadius: "6px",
-            padding: "24px",
-            marginBottom: "20px"
-          }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "20px", marginBottom: "20px" }}>
-              <div>
-                <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "8px" }}>Current Yield</p>
-                <p className="mono" style={{ fontSize: "28px", fontWeight: "600", color: "var(--accent-primary)" }}>
-                  +2.4% APY
-                </p>
-              </div>
-              <div>
-                <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "8px" }}>Total Deposited</p>
-                <p className="mono" style={{ fontSize: "28px", fontWeight: "600", color: "var(--text-primary)" }}>
-                  {loading ? "Loading..." : currentBalance}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="chart-container grid-pattern">
-          <h3 style={{ fontFamily: "Syne, sans-serif", fontSize: "18px", fontWeight: "600", marginBottom: "20px" }}>
-            Treasury Growth
-          </h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={mockTreasuryData}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="date"
-                stroke="var(--text-muted)"
-                style={{ fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}
-              />
-              <YAxis
-                stroke="var(--text-muted)"
-                style={{ fontSize: "12px", fontFamily: "IBM Plex Mono, monospace" }}
-                domain={[10, 11]}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "4px",
-                  fontFamily: "IBM Plex Mono, monospace"
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke="var(--accent-primary)"
-                strokeWidth={2}
-                fill="url(#colorValue)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
         </div>
       </div>
 

@@ -1,66 +1,63 @@
+const BASE_URL = 'https://micropay.up.railway.app/api'
 const WALLET_ADDRESS = 'AuofYo21iiX8NQtgWBXLRFMiWfv83z2CbnhPNen6WNt5'
-
-let connection = null
-
-async function getConnection() {
-  if (!connection) {
-    const { Connection } = await import('@solana/web3.js')
-    connection = new Connection(
-      process.env.NEXT_PUBLIC_RPC_URL || 'https://api.devnet.solana.com',
-      'confirmed'
-    )
-  }
-  return connection
-}
+const AUTH = 'Bearer mp_live_demo_key'
 
 export async function getWalletBalance() {
-  const { PublicKey } = await import('@solana/web3.js')
-  const conn = await getConnection()
-  const lamports = await conn.getBalance(new PublicKey(WALLET_ADDRESS))
-  return (lamports / 1_000_000_000).toFixed(4)
+  const res = await fetch(`${BASE_URL}/v1/balance/${WALLET_ADDRESS}`, {
+    headers: { 'Authorization': AUTH }
+  })
+  const data = await res.json()
+  return data.balance_sol?.toFixed(4) || '0.0000'
 }
 
 export async function getParsedTransactions() {
-  const { PublicKey } = await import('@solana/web3.js')
-  const conn = await getConnection()
-  const pubkey = new PublicKey(WALLET_ADDRESS)
-  const signatures = await conn.getSignaturesForAddress(pubkey, { limit: 20 })
-  const parsed = await Promise.all(
-    signatures.map(async (sig) => {
-      const tx = await conn.getParsedTransaction(sig.signature, {
-        commitment: 'confirmed',
-        maxSupportedTransactionVersion: 0,
-      })
-      return {
-        id: sig.signature.slice(0, 12) + '...',
-        fullSignature: sig.signature,
-        status: sig.err ? 'failed' : 'settled',
-        time: sig.blockTime ? new Date(sig.blockTime * 1000).toLocaleTimeString() : 'Unknown',
-        amount: tx?.meta
-          ? Math.abs(tx.meta.preBalances[0] - tx.meta.postBalances[0]) / 1_000_000_000
-          : 0,
-        description: 'Solana Transfer',
-      }
-    })
-  )
-  return parsed
+  const res = await fetch(`${BASE_URL}/v1/charges?limit=10`, {
+    headers: { 'Authorization': AUTH }
+  })
+  const data = await res.json()
+
+  // Map backend charges to the shape the dashboard table expects
+  const charges = Array.isArray(data) ? data : data.charges || data.results || []
+
+  return charges.map(charge => ({
+    id: charge.id?.slice(0, 12) + '...' || 'unknown',
+    fullSignature: charge.id || '',
+    status: charge.status === 'requires_signature' ? 'pending' : charge.status || 'settled',
+    time: charge.created_at
+      ? new Date(charge.created_at).toLocaleTimeString()
+      : 'Unknown',
+    amount: charge.amount_sol || charge.amount_usd || 0,
+    description: charge.service_name || 'API Call',
+  }))
 }
 
 export async function getDashboardStats() {
-  const [transactions, balance] = await Promise.all([
-    getParsedTransactions(),
-    getWalletBalance(),
-  ])
-  const totalVolume = transactions.reduce((acc, tx) => acc + tx.amount, 0).toFixed(4)
-  const successCount = transactions.filter(t => t.status === 'settled').length
-  const successRate = transactions.length > 0
-    ? ((successCount / transactions.length) * 100).toFixed(1)
-    : '100.0'
-  return {
-    totalVolume: `${totalVolume} SOL`,
-    transactionCount: transactions.length,
-    successRate: `${successRate}%`,
-    currentBalance: `${balance} SOL`,
-    transactions,
+  try {
+    const [transactions, balance] = await Promise.all([
+      getParsedTransactions(),
+      getWalletBalance(),
+    ])
+
+    const totalVolume = transactions
+      .reduce((acc, tx) => acc + Number(tx.amount), 0)
+      .toFixed(4)
+
+    const successCount = transactions.filter(t =>
+      t.status === 'settled' || t.status === 'confirmed'
+    ).length
+
+    const successRate = transactions.length > 0
+      ? ((successCount / transactions.length) * 100).toFixed(1)
+      : '100.0'
+
+    return {
+      totalVolume: `${totalVolume} SOL`,
+      transactionCount: transactions.length,
+      successRate: `${successRate}%`,
+      currentBalance: `${balance} SOL`,
+      transactions,
+    }
+  } catch (err) {
+    throw err
   }
 }

@@ -6,10 +6,6 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { name: "Dashboard", path: "/dashboard" },
   { name: "Bazaar", path: "/dashboard/bazaar" },
-  { name: "API Keys", path: "/dashboard#keys" },
-  { name: "Transactions", path: "/dashboard#transactions" },
-  { name: "Treasury", path: "/dashboard#treasury" },
-  { name: "Register API", path: "/dashboard#register" },
   { name: "Playground", path: "/playground" },
 ];
 

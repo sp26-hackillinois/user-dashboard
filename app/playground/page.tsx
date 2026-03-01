@@ -130,7 +130,7 @@ function PlaygroundContent() {
     if (typeof window !== 'undefined' && (window as any).solana) {
       (window as any).solana.connect({ onlyIfTrusted: true })
         .then((res: any) => setWalletAddress(res.publicKey.toString()))
-        .catch(() => {});
+        .catch(() => { });
     }
   }, []);
 
@@ -649,8 +649,8 @@ function PlaygroundContent() {
                       color: "var(--text-muted)",
                       lineHeight: "1.6"
                     }}>
-                      Querying Registry...<br/>
-                      Found: {msg.service} · ${msg.cost}<br/>
+                      Querying Registry...<br />
+                      Found: {msg.service} · ${msg.cost}<br />
                       Requesting payment authorization...
                     </div>
                   </div>
