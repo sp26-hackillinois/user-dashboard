@@ -39,7 +39,7 @@ export default function BazaarPage() {
   };
 
   return (
-    <div style={{ background: "radial-gradient(ellipse at top, #0d0d1a 0%, var(--bg-primary) 100%)", minHeight: "100vh" }}>
+    <div className="hero">
       <div style={{
         backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' /%3E%3C/filter%3E%3Crect width=\'100\' height=\'100\' filter=\'url(%23noise)\' opacity=\'0.03\'/%3E%3C/svg%3E")',
         minHeight: "100vh"
@@ -53,7 +53,7 @@ export default function BazaarPage() {
           alignItems: "center"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <h1 style={{ fontFamily: "Syne, sans-serif", fontSize: "24px", fontWeight: "800", color: "var(--text-primary)" }}>
+            <h1 style={{ fontFamily: "Anybody, sans-serif", fontSize: "1.1rem", fontWeight: "900", color: "var(--accent-primary)", letterSpacing: "-0.02em", textShadow: "var(--glow-cyan)" }}>
               Micropay
             </h1>
             <span className="devnet-badge">DEVNET</span>
@@ -81,23 +81,25 @@ export default function BazaarPage() {
           textAlign: "center"
         }}>
           <h2 style={{
-            fontFamily: "Syne, sans-serif",
-            fontSize: "64px",
-            fontWeight: "800",
+            fontFamily: "Anybody, sans-serif",
+            fontSize: "clamp(2.5rem, 6vw, 5rem)",
+            fontWeight: "900",
             color: "var(--text-primary)",
             marginBottom: "24px",
-            lineHeight: "1.1",
+            lineHeight: "0.95",
+            letterSpacing: "-0.04em",
             animation: "fadeInUp 600ms ease forwards"
           }}>
-            The App Store for<br />Autonomous Agents
+            The App Store for<br /><span style={{ color: "var(--accent-primary)", textShadow: "0 0 40px rgba(0, 255, 224, 0.4)" }}>Autonomous Agents</span>
           </h2>
           <p style={{
-            fontSize: "20px",
+            fontSize: "1.1rem",
             color: "var(--text-muted)",
             marginBottom: "48px",
             maxWidth: "700px",
             margin: "0 auto 48px",
             lineHeight: "1.6",
+            fontFamily: "Martian Mono, monospace",
             animation: "fadeInUp 600ms ease forwards",
             animationDelay: "100ms",
             opacity: 0,
@@ -114,13 +116,13 @@ export default function BazaarPage() {
             opacity: 0,
             animationFillMode: "forwards"
           }}>
-            <a href="/login" className="btn btn-primary" style={{ padding: "16px 32px", fontSize: "16px" }}>
+            <a href="/login" className="btn btn-primary" style={{ padding: "16px 32px", fontSize: "0.8rem" }}>
               Get Your API Key
             </a>
             <button
               onClick={scrollToRegistry}
               className="btn btn-secondary"
-              style={{ padding: "16px 32px", fontSize: "16px" }}
+              style={{ padding: "16px 32px", fontSize: "0.8rem" }}
             >
               Browse the Registry
             </button>
@@ -135,10 +137,11 @@ export default function BazaarPage() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "40px" }}>
             <h3 style={{
-              fontFamily: "Syne, sans-serif",
-              fontSize: "32px",
+              fontFamily: "Anybody, sans-serif",
+              fontSize: "2rem",
               fontWeight: "700",
-              color: "var(--text-primary)"
+              color: "var(--text-primary)",
+              letterSpacing: "-0.02em"
             }}>
               Live Registry
             </h3>
@@ -150,7 +153,7 @@ export default function BazaarPage() {
                 background: "var(--accent-primary)",
                 animation: "pulse 2s ease infinite"
               }} />
-              <span style={{ fontSize: "13px", color: "var(--accent-primary)", fontWeight: "600" }}>LIVE</span>
+              <span style={{ fontSize: "0.7rem", color: "var(--accent-primary)", fontWeight: "600", fontFamily: "Martian Mono, monospace", letterSpacing: "0.1em" }}>LIVE</span>
             </div>
           </div>
 
@@ -168,16 +171,18 @@ export default function BazaarPage() {
                 onClick={() => setSelectedCategory(category)}
                 style={{
                   padding: "8px 16px",
-                  borderRadius: "20px",
+                  borderRadius: "2px",
                   border: "1px solid var(--border)",
                   background: selectedCategory === category ? "var(--accent-primary)" : "var(--bg-elevated)",
-                  color: selectedCategory === category ? "var(--bg-primary)" : "var(--text-primary)",
-                  fontFamily: "IBM Plex Mono, monospace",
-                  fontSize: "13px",
+                  color: selectedCategory === category ? "#000" : "var(--text-primary)",
+                  fontFamily: "Martian Mono, monospace",
+                  fontSize: "0.7rem",
                   fontWeight: "600",
                   cursor: "pointer",
-                  transition: "all 150ms ease",
-                  whiteSpace: "nowrap"
+                  transition: "all 120ms ease",
+                  whiteSpace: "nowrap",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase"
                 }}
               >
                 {category}
@@ -193,13 +198,13 @@ export default function BazaarPage() {
             {filteredServices.map((service, index) => (
               <div
                 key={service.id}
-                className="service-card"
+                className="card"
                 style={{
                   background: "var(--bg-elevated)",
                   border: "1px solid var(--border)",
-                  borderRadius: "4px",
+                  borderRadius: "2px",
                   padding: "24px",
-                  transition: "all 150ms ease",
+                  transition: "all 120ms ease",
                   opacity: 0,
                   animation: "fadeInUp 400ms ease forwards",
                   animationDelay: `${index * 50}ms`,
@@ -208,51 +213,58 @@ export default function BazaarPage() {
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: "12px" }}>
                   <h4 style={{
-                    fontFamily: "Syne, sans-serif",
-                    fontSize: "18px",
+                    fontFamily: "Anybody, sans-serif",
+                    fontSize: "1.1rem",
                     fontWeight: "700",
-                    color: "var(--text-primary)"
+                    color: "var(--text-primary)",
+                    letterSpacing: "-0.01em"
                   }}>
                     {service.name}
                   </h4>
                   <div style={{ display: "flex", gap: "6px" }}>
                     <span style={{
-                      background: "rgba(90, 90, 122, 0.2)",
+                      background: "var(--bg-hover)",
                       color: "var(--text-muted)",
                       padding: "4px 8px",
-                      borderRadius: "3px",
-                      fontSize: "10px",
-                      fontWeight: "600",
-                      fontFamily: "IBM Plex Mono, monospace"
+                      borderRadius: "2px",
+                      fontSize: "0.6rem",
+                      fontWeight: "400",
+                      fontFamily: "Martian Mono, monospace",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase"
                     }}>
                       {service.category}
                     </span>
                     <span style={{
-                      background: "rgba(0, 255, 136, 0.15)",
+                      background: "rgba(0, 255, 224, 0.08)",
                       color: "var(--accent-primary)",
                       padding: "4px 8px",
-                      borderRadius: "3px",
-                      fontSize: "10px",
-                      fontWeight: "600",
-                      fontFamily: "IBM Plex Mono, monospace"
+                      borderRadius: "2px",
+                      fontSize: "0.6rem",
+                      fontWeight: "400",
+                      fontFamily: "Martian Mono, monospace",
+                      letterSpacing: "0.08em",
+                      border: "1px solid rgba(0, 255, 224, 0.2)"
                     }}>
                       LIVE
                     </span>
                   </div>
                 </div>
                 <p style={{
-                  fontSize: "14px",
+                  fontSize: "0.85rem",
                   color: "var(--text-muted)",
                   marginBottom: "16px",
-                  lineHeight: "1.5"
+                  lineHeight: "1.5",
+                  fontFamily: "Martian Mono, monospace"
                 }}>
                   {service.description}
                 </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
                   <span style={{
-                    fontFamily: "IBM Plex Mono, monospace",
-                    fontSize: "11px",
-                    color: "var(--text-muted)"
+                    fontFamily: "Martian Mono, monospace",
+                    fontSize: "0.65rem",
+                    color: "var(--text-dim)",
+                    letterSpacing: "0.02em"
                   }}>
                     {service.id}
                   </span>
@@ -269,33 +281,15 @@ export default function BazaarPage() {
           textAlign: "center"
         }}>
           <p style={{
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "12px",
-            color: "var(--text-muted)"
+            fontFamily: "Martian Mono, monospace",
+            fontSize: "0.65rem",
+            color: "var(--text-dim)",
+            letterSpacing: "0.05em"
           }}>
             Micropay Bazaar · HackIllinois 2026 · Solana Devnet
           </p>
         </footer>
       </div>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7);
-          }
-          50% {
-            opacity: 0.5;
-            box-shadow: 0 0 0 8px rgba(0, 255, 136, 0);
-          }
-        }
-
-        .service-card:hover {
-          border-color: var(--accent-primary);
-          box-shadow: 0 0 20px rgba(0, 255, 136, 0.15);
-          transform: translateY(-2px);
-        }
-      `}</style>
     </div>
   );
 }

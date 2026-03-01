@@ -26,11 +26,10 @@ type Transaction = {
 };
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [totalVolume, setTotalVolume] = useState("0.0000 SOL");
-  const [transactionCount, setTransactionCount] = useState<number | string>(0);
-  const [successRate, setSuccessRate] = useState("100.0%");
-  const [currentBalance, setCurrentBalance] = useState("0.0000 SOL");
+  const [totalVolume, setTotalVolume] = useState("—");
+  const [transactionCount, setTransactionCount] = useState<number | string>("—");
+  const [successRate, setSuccessRate] = useState("—");
+  const [currentBalance, setCurrentBalance] = useState("—");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -52,7 +51,6 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadStats() {
       try {
-        setLoading(true);
         const stats = await getDashboardStats();
         setTotalVolume(stats.totalVolume);
         setTransactionCount(stats.transactionCount);
@@ -65,8 +63,6 @@ export default function DashboardPage() {
         setSuccessRate('—');
         setCurrentBalance('—');
         setTransactions([]);
-      } finally {
-        setLoading(false);
       }
     }
     loadStats();
@@ -125,20 +121,20 @@ export default function DashboardPage() {
       {/* Metrics Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "40px" }}>
         <MetricCard
-          title="Total Volume"
-          value={loading ? "Loading..." : totalVolume}
+          title="Current Balance"
+          value={currentBalance}
           percentChange=""
           delay={0}
         />
         <MetricCard
           title="Transaction Count"
-          value={loading ? "Loading..." : transactionCount.toString()}
+          value={transactionCount.toString()}
           percentChange=""
           delay={100}
         />
         <MetricCard
           title="Success Rate"
-          value={loading ? "Loading..." : successRate}
+          value={successRate}
           percentChange=""
           delay={200}
         />
@@ -219,7 +215,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {transactionView === "chart" ? (
+        <div style={{ display: transactionView === "chart" ? "block" : "none" }}>
           <div style={{
             background: "var(--bg-elevated)",
             border: "1px solid var(--border)",
@@ -267,51 +263,63 @@ export default function DashboardPage() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-        ) : (
+        </div>
+
+        <div style={{ display: transactionView === "table" ? "block" : "none" }}>
           <table className="transactions-table" style={{
+            width: '100%',
+            tableLayout: 'fixed',
+            borderCollapse: 'collapse',
             opacity: 0,
             animation: "fadeIn 300ms ease forwards"
           }}>
+          <colgroup>
+            <col style={{ width: '25%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '30%' }} />
+            <col style={{ width: '15%' }} />
+          </colgroup>
           <thead>
             <tr>
-              <th>Transaction ID</th>
-              <th>Amount (SOL)</th>
-              <th>Status</th>
-              <th>Description</th>
-              <th>Time</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaction ID</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Amount (SOL)</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Status</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Description</th>
+              <th style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Time</th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {transactions.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                <td colSpan={5} style={{
+                  textAlign: "center",
+                  color: "var(--text-muted)",
+                  fontFamily: "Martian Mono, monospace",
+                  fontSize: "0.75rem",
+                  padding: "2rem"
+                }}>
                   Loading transactions...
-                </td>
-              </tr>
-            ) : transactions.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
-                  No transactions found
                 </td>
               </tr>
             ) : (
               transactions.map((txn) => (
                 <tr key={txn.fullSignature}>
-                  <td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <code className="mono" style={{ fontSize: "13px" }}>{txn.id}</code>
                   </td>
-                  <td>
-                    <span className="mono" style={{ fontWeight: "600" }}>{txn.amount.toFixed(4)}</span>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span className="mono" style={{ fontWeight: "600" }}>{txn.amount}</span>
                   </td>
-                  <td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span className={`status-badge ${
                       txn.status === "settled" ? "status-settled" : "status-failed"
                     }`}>
                       {txn.status === "settled" ? "Settled" : "Failed"}
                     </span>
                   </td>
-                  <td style={{ color: "var(--text-muted)" }}>{txn.description}</td>
-                  <td>
+                  <td style={{ color: "var(--text-muted)", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{txn.description}</td>
+                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     <span className="mono" style={{ fontSize: "13px", color: "var(--text-muted)" }}>
                       {txn.time}
                     </span>
@@ -321,7 +329,7 @@ export default function DashboardPage() {
             )}
           </tbody>
         </table>
-        )}
+        </div>
       </div>
 
       {/* Register API Section */}
