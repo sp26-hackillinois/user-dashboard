@@ -17,7 +17,6 @@ const mockTransactionHistory = [
 ];
 
 export default function DashboardPage() {
-  // State — initialize with placeholders
   const [stats, setStats] = useState({
     totalVolume: '—',
     transactionCount: 0,
@@ -25,7 +24,6 @@ export default function DashboardPage() {
     currentBalance: '—',
     transactions: [] as any[],
   })
-  const [loaded, setLoaded] = useState(false)
   const [apiKeyRevealed, setApiKeyRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [transactionView, setTransactionView] = useState<"chart" | "table">("table");
@@ -45,13 +43,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getDashboardStats()
-      .then(data => {
-        setStats(data)
-        setLoaded(true)
-      })
-      .catch(() => {
-        setLoaded(true) // show empty state, not spinner
-      })
+      .then(data => setStats(data))
+      .catch(() => {}) // silent fail
   }, [])
 
   const handleCopy = () => {
@@ -301,19 +294,7 @@ export default function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {!loaded ? (
-              <tr>
-                <td colSpan={5} style={{
-                  textAlign: 'center',
-                  padding: '2rem',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'Martian Mono, monospace',
-                  fontSize: '0.75rem',
-                }}>
-                  syncing transactions...
-                </td>
-              </tr>
-            ) : stats.transactions.length === 0 ? (
+            {stats.transactions.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{
                   textAlign: 'center',
