@@ -12,8 +12,8 @@ export async function getWalletBalance() {
 
 export async function getParsedTransactions() {
   const res = await fetch(
-    `${BASE_URL}/v1/transactions/${TRANSACTIONS_WALLET}`,
-    { headers: AUTH }
+    `${BASE_URL}/v1/transactions/${TRANSACTIONS_WALLET}`
+    // no auth header — endpoint is public
   )
   if (!res.ok) throw new Error(`Transactions failed: ${res.status}`)
   const data = await res.json()
