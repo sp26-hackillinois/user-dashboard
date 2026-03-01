@@ -165,6 +165,31 @@ export default function DashboardPage() {
           <h2 className="section-header" style={{ marginBottom: "0" }}>Recent Transactions</h2>
           <div style={{ display: "flex", gap: "8px" }}>
             <button
+              onClick={() => {
+                setStats({
+                  totalVolume: '—',
+                  transactionCount: 0,
+                  successRate: '—',
+                  currentBalance: '—',
+                  transactions: [],
+                })
+                getDashboardStats().then(data => setStats(data))
+              }}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: '2px',
+                color: 'var(--text-muted)',
+                fontFamily: 'Martian Mono, monospace',
+                fontSize: '0.7rem',
+                padding: '4px 10px',
+                cursor: 'pointer',
+                letterSpacing: '0.08em',
+              }}
+            >
+              ↻ REFRESH
+            </button>
+            <button
               onClick={() => setTransactionView("chart")}
               style={{
                 padding: "8px 16px",
