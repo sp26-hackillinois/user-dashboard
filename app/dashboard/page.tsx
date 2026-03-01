@@ -135,7 +135,7 @@ export default function DashboardPage() {
               border: "1px solid var(--border)",
               borderRadius: "6px",
               padding: "24px"
-            }}>5
+            }}>
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                 <input
                   type="text"
