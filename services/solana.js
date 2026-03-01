@@ -1,20 +1,18 @@
 const BASE_URL = 'https://micropay.up.railway.app/api'
-const CONSUMER_WALLET = '2Hn6ESeMRqfVDTptanXgK6vDEpgJGnp4rG6Ls3dzszv8'
+const BALANCE_WALLET = 'AuofYo21iiX8NQtgWBXLRFMiWfv83z2CbnhPNen6WNt5'
+const TRANSACTIONS_WALLET = '2Hn6ESeMRqfVDTptanXgK6vDEpgJGnp4rG6Ls3dzszv8'
 const AUTH = { 'Authorization': 'Bearer mp_live_demo_key' }
 
 export async function getWalletBalance() {
-  const res = await fetch(`${BASE_URL}/v1/balance/${CONSUMER_WALLET}`)
+  const res = await fetch(`${BASE_URL}/v1/balance/${BALANCE_WALLET}`)
   if (!res.ok) throw new Error(`Balance failed: ${res.status}`)
   const data = await res.json()
-  return {
-    balance: Number(data.balance_sol).toFixed(4),
-    developerWallet: data.developer_wallet, // read from response
-  }
+  return Number(data.balance_sol).toFixed(4)
 }
 
-export async function getParsedTransactions(developerWallet) {
+export async function getParsedTransactions() {
   const res = await fetch(
-    `${BASE_URL}/v1/transactions/${developerWallet}`,
+    `${BASE_URL}/v1/transactions/${TRANSACTIONS_WALLET}`,
     { headers: AUTH }
   )
   if (!res.ok) throw new Error(`Transactions failed: ${res.status}`)
@@ -29,28 +27,10 @@ export async function getParsedTransactions(developerWallet) {
   }))
 }
 
-export async function getTotalTransactionCount() {
-  try {
-    const res = await fetch(
-      `${BASE_URL}/v1/charges/count`
-      // no auth needed
-    )
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.count ?? null
-  } catch {
-    return null
-  }
-}
-
 export async function getDashboardStats() {
-  // Step 1 — get balance AND developer wallet address
-  const { balance, developerWallet } = await getWalletBalance()
-
-  // Step 2 — use developer wallet to get real payment transactions
-  const [transactions, totalCount] = await Promise.all([
-    getParsedTransactions(developerWallet),
-    getTotalTransactionCount(),
+  const [balance, transactions] = await Promise.all([
+    getWalletBalance(),
+    getParsedTransactions(),
   ])
 
   const totalVolume = transactions
@@ -64,7 +44,7 @@ export async function getDashboardStats() {
 
   return {
     totalVolume: `${totalVolume} SOL`,
-    transactionCount: totalCount ?? transactions.length,
+    transactionCount: transactions.length,
     successRate: `${successRate}%`,
     currentBalance: `${balance} SOL`,
     transactions,
