@@ -1,5 +1,5 @@
 const BASE_URL = 'https://micropay.up.railway.app/api'
-const CONSUMER_WALLET = 'AuofYo21iiX8NQtgWBXLRFMiWfv83z2CbnhPNen6WNt5'
+const CONSUMER_WALLET = '2Hn6ESeMRqfVDTptanXgK6vDEpgJGnp4rG6Ls3dzszv8'
 const AUTH = { 'Authorization': 'Bearer mp_live_demo_key' }
 
 export async function getWalletBalance() {
